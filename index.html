@@ -302,6 +302,7 @@ zh: {
   plEmpty:'這個 Playlist 裡沒有影片', plLoaded:'已載入 Playlist,共 {0} 段',
   plSwitchWarn:'切換影片來源會清空目前的影片清單(不影響已標記的事件)。要繼續嗎?', switchConfirm:'切換',
   ytApiFail:'YouTube 播放器載入失敗,請檢查網路連線',
+  ytPlaybackErr:'這段影片播放失敗({0})。如果是「embedding disabled」,代表影片擁有者關閉了外部網站播放權限,需要去 YouTube Studio 該支影片的進階設定打開「允許嵌入」',
   chapBtnLabel:'YouTube 章節', chapTitle:'匯出 YouTube 章節', chapHint:'每段影片各自的時間軸文字,貼到該支影片在 YouTube 的描述欄位裡就會變成可點擊章節。時間間隔太近的事件會自動合併成一行。',
   chapNoEvents:'這段還沒有事件', chapCopied:'已複製', chapStart:'開始',
   done:'完成', inWord:'in', outWord:'out'
@@ -359,6 +360,7 @@ en: {
   plEmpty:'This playlist has no videos', plLoaded:'Playlist loaded, {0} clips',
   plSwitchWarn:'Switching video source clears the current video list (tagged events are kept). Continue?', switchConfirm:'Switch',
   ytApiFail:'YouTube player failed to load \u2014 check your connection',
+  ytPlaybackErr:'This clip failed to play ({0}). If it says "embedding disabled", the video owner needs to turn on "Allow embedding" in that video\u2019s advanced settings on YouTube Studio',
   chapBtnLabel:'YouTube chapters', chapTitle:'Export YouTube chapters', chapHint:'Per-clip timestamp text \u2014 paste it into that video\u2019s YouTube description to get clickable chapters. Events too close together are merged into one line.',
   chapNoEvents:'No events in this clip yet', chapCopied:'Copied', chapStart:'Start',
   done:'Done', inWord:'in', outWord:'out'
@@ -627,11 +629,16 @@ function ensureYT() {
 }
 function createYT() {
   return new Promise((resolve, reject) => {
+    let settled = false;
     yt = new YT.Player('ytwrap', {
       height: '100%', width: '100%', playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
       events: {
-        onReady: () => { ytReady = true; resolve(); if (ytPendingSeek) { const p = ytPendingSeek; ytPendingSeek = null; loadSegYT(p.i, p.tm, p.play); } },
-        onError: () => { const err = new Error('yt error'); err.code = 'video'; reject(err); },
+        onReady: () => { ytReady = true; settled = true; resolve(); if (ytPendingSeek) { const p = ytPendingSeek; ytPendingSeek = null; loadSegYT(p.i, p.tm, p.play); } },
+        onError: e => {
+          const names = { 2:'invalid video id', 5:'HTML5 player error', 100:'video not found or private', 101:'embedding disabled by video owner', 150:'embedding disabled by video owner' };
+          toast(t('ytPlaybackErr', names[e.data] || ('code ' + e.data)), 'warn');
+          if (!settled) { settled = true; const err = new Error('yt error'); err.code = 'video'; reject(err); }
+        },
         onStateChange: e => {
           ytLastState = e.data;
           if (e.data === YT.PlayerState.ENDED) { const n = curSeg + 1; if (n < S.game.videos.length) loadSeg(n, 0, true); }
