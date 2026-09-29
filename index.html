@@ -38,9 +38,17 @@ input,textarea{background:var(--deep);border:1px solid var(--line);border-radius
 @media(max-width:960px){.grid{grid-template-columns:1fr}}
 .stage{min-width:0}
 .vwrap{position:relative;background:var(--deep);border:1px solid var(--line);border-radius:8px;overflow:hidden;aspect-ratio:16/9}
-.vwrap video{width:100%;height:100%;display:block;background:#000}
+.vwrap video,.vwrap #ytwrap{width:100%;height:100%;display:block;background:#000}
+.vwrap #ytwrap iframe{width:100%;height:100%;display:block}
 .vempty{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--muted)}
 .vempty.hide{display:none}
+
+.srcsw{display:flex;gap:6px;margin:0 0 8px}
+.srcsw button{padding:4px 12px;font-size:13px}
+.srcsw button.on{background:var(--wood);border-color:var(--wood);color:#1d1608;font-weight:600}
+.plform{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
+.plform input{flex:1;min-width:180px}
+.chapbox{white-space:pre-wrap;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px;max-height:50vh;overflow-y:auto;background:var(--deep);border:1px solid var(--line);border-radius:6px;padding:10px}
 
 .vtools{display:flex;gap:8px;justify-content:flex-end;margin:8px 0 0}
 .vtools button{padding:3px 12px;font-size:13px}
@@ -121,6 +129,9 @@ dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);bo
 dialog::backdrop{background:rgba(0,0,0,.6)}
 dialog textarea{width:100%;height:220px}
 .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+dialog .segpick{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+dialog .segpick button{padding:3px 10px;font-size:13px}
+dialog .segpick button.on{background:var(--wood);border-color:var(--wood);color:#1d1608}
 </style>
 </head>
 <body>
@@ -146,12 +157,18 @@ dialog textarea{width:100%;height:220px}
 
   <main class="grid">
     <section class="stage">
+      <div class="srcsw" id="srcsw"><button data-src="local"></button><button data-src="youtube"></button></div>
+      <div class="plform" id="plform" hidden>
+        <input id="plInput" placeholder="Playlist ID or URL">
+        <button class="primary" id="plLoad"></button>
+      </div>
       <div class="vwrap">
         <video id="v" controls playsinline></video>
+        <div id="ytwrap" hidden></div>
         <div class="vempty" id="vempty"><div id="vemptyMsg"></div></div>
       </div>
 
-      <div class="vtools"><button id="theaterBtn"></button><button id="popBtn"></button></div>
+      <div class="vtools"><button id="theaterBtn"></button><button id="popBtn"></button><button id="chapBtn"></button></div>
       <div class="segs" id="segs"></div>
 
       <div class="bar">
@@ -215,7 +232,15 @@ dialog textarea{width:100%;height:220px}
   <textarea id="expTxt" readonly></textarea>
   <div class="row"><button id="expCopy"></button><button id="expClose" class="primary"></button></div>
 </dialog>
+<dialog id="chapDlg">
+  <h3 style="margin:0 0 4px" id="t_chapTitle"></h3>
+  <p class="muted" style="margin:0 0 10px" id="t_chapHint"></p>
+  <div class="segpick" id="chapSegs"></div>
+  <div class="chapbox" id="chapBox"></div>
+  <div class="row"><button id="chapCopy"></button><button id="chapDone" class="primary"></button></div>
+</dialog>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 (() => {
 'use strict';
@@ -269,7 +294,17 @@ zh: {
   newGameDone:'新比賽,名單已保留', deleted:'已刪除',
   savedFile:'已存 {0}', downloadedFile:'已下載 {0}', fallbackMsg:'這個環境無法直接下載。複製下面內容,存成 {0}',
   reportTitleDefault:'比賽報告', reportVs:'對 {0}',
-  reportNote:'MIN = 上場時間(不含暫停、中場)。2PT / 3PT / FT 顯示為命中-出手。數據由教練從比賽影片標記。'
+  reportNote:'MIN = 上場時間(不含暫停、中場)。2PT / 3PT / FT 顯示為命中-出手。數據由教練從比賽影片標記。',
+  srcLocal:'本地檔案', srcYoutube:'YouTube',
+  plPlaceholder:'貼 Playlist ID 或網址',
+  plLoadBtn:'載入', plLoading:'讀取 Playlist…', plBadId:'看不出來是有效的 Playlist,請確認網址或 ID',
+  plNoAccess:'讀不到這個 Playlist。請確認是 unlisted 或公開,不是 private',
+  plEmpty:'這個 Playlist 裡沒有影片', plLoaded:'已載入 Playlist,共 {0} 段',
+  plSwitchWarn:'切換影片來源會清空目前的影片清單(不影響已標記的事件)。要繼續嗎?', switchConfirm:'切換',
+  ytApiFail:'YouTube 播放器載入失敗,請檢查網路連線',
+  chapBtnLabel:'YouTube 章節', chapTitle:'匯出 YouTube 章節', chapHint:'每段影片各自的時間軸文字,貼到該支影片在 YouTube 的描述欄位裡就會變成可點擊章節。時間間隔太近的事件會自動合併成一行。',
+  chapNoEvents:'這段還沒有事件', chapCopied:'已複製', chapStart:'開始',
+  done:'完成', inWord:'in', outWord:'out'
 },
 en: {
   appTitle:'Game Tagger', opponent:'Opponent', date:'Date',
@@ -316,7 +351,17 @@ en: {
   newGameDone:'New game \u2014 roster kept', deleted:'Deleted',
   savedFile:'Saved {0}', downloadedFile:'Downloaded {0}', fallbackMsg:'Can\u2019t download directly here. Copy the text below and save it as {0}',
   reportTitleDefault:'Game report', reportVs:'vs {0}',
-  reportNote:'MIN = time on court (timeouts and halftime excluded). 2PT / 3PT / FT shown as made-attempted. Stats tagged by the coach from game video.'
+  reportNote:'MIN = time on court (timeouts and halftime excluded). 2PT / 3PT / FT shown as made-attempted. Stats tagged by the coach from game video.',
+  srcLocal:'Local files', srcYoutube:'YouTube',
+  plPlaceholder:'Paste Playlist ID or URL',
+  plLoadBtn:'Load', plLoading:'Loading playlist\u2026', plBadId:'Doesn\u2019t look like a valid playlist \u2014 check the URL or ID',
+  plNoAccess:'Can\u2019t load this playlist. Make sure it\u2019s unlisted or public, not private',
+  plEmpty:'This playlist has no videos', plLoaded:'Playlist loaded, {0} clips',
+  plSwitchWarn:'Switching video source clears the current video list (tagged events are kept). Continue?', switchConfirm:'Switch',
+  ytApiFail:'YouTube player failed to load \u2014 check your connection',
+  chapBtnLabel:'YouTube chapters', chapTitle:'Export YouTube chapters', chapHint:'Per-clip timestamp text \u2014 paste it into that video\u2019s YouTube description to get clickable chapters. Events too close together are merged into one line.',
+  chapNoEvents:'No events in this clip yet', chapCopied:'Copied', chapStart:'Start',
+  done:'Done', inWord:'in', outWord:'out'
 }
 };
 let LANG = localStorage.getItem('hoops-tagger-lang') || ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
@@ -345,7 +390,12 @@ function applyLang() {
   $('#ordNo').textContent = t('cancel'); $('#ordOk').textContent = t('confirmOrder');
   $('#expCopy').textContent = t('copy'); $('#expClose').textContent = t('close');
   document.querySelectorAll('#langsw [data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === LANG));
-  renderKeys(); loadVideoUI(); renderAll();
+  $('#srcsw [data-src="local"]').textContent = t('srcLocal');
+  $('#srcsw [data-src="youtube"]').textContent = t('srcYoutube');
+  $('#plInput').placeholder = t('plPlaceholder'); $('#plLoad').textContent = t('plLoadBtn');
+  $('#chapBtn').textContent = t('chapBtnLabel');
+  $('#chapCopy').textContent = t('copy'); $('#chapDone').textContent = t('done');
+  renderKeys(); loadVideoUI(); renderAll(); renderSrcSw();
 }
 $('#langsw').onclick = e => {
   const b = e.target.closest('[data-lang]'); if (!b) return;
@@ -354,7 +404,7 @@ $('#langsw').onclick = e => {
 
 const STORE = 'hoops-tagger-v1';
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
-const blank = () => ({ game:{ opponent:'', date:today(), videos:[] }, roster:[], events:[], clock_stopped:[], stopStart:null, endT:null });
+const blank = () => ({ game:{ opponent:'', date:today(), source:'local', playlistId:'', videos:[] }, roster:[], events:[], clock_stopped:[], stopStart:null, endT:null });
 
 let S = blank();
 try {
@@ -365,6 +415,8 @@ const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } cat
 function normalize() {
   if (!S.game) S.game = { opponent:'', date:today() };
   if (!Array.isArray(S.game.videos)) S.game.videos = S.game.video ? [{ name:S.game.video, duration:null }] : [];
+  if (S.game.source !== 'youtube') S.game.source = 'local';
+  if (typeof S.game.playlistId !== 'string') S.game.playlistId = '';
   delete S.game.video;
 }
 normalize();
@@ -382,9 +434,12 @@ for (const [ty, o] of Object.entries(TYPES)) if (o.k) KEYMAP[o.k] = ty;
 
 const v = $('#v');
 const vids = []; let curSeg = 0; let pipWin = null;
+let yt = null, ytReady = false, ytLoading = false, ytPendingSeek = null, ytLastState = -1;
+const isYT = () => S.game.source === 'youtube';
 const dur = i => (S.game.videos[i] && S.game.videos[i].duration) || 0;
 const segOff = i => { let o = 0; for (let k = 0; k < i; k++) o += dur(k); return o; };
-const curT = () => segOff(curSeg) + (v.currentTime || 0);
+const localTime = () => isYT() ? (yt && ytReady ? (yt.getCurrentTime() || 0) : 0) : (v.currentTime || 0);
+const curT = () => segOff(curSeg) + localTime();
 function locate(g) {
   const n = S.game.videos.length; let o = 0;
   for (let i = 0; i < n; i++) { const d = dur(i); if (g < o + d || i === n - 1) return { i, t: Math.max(0, g - o) }; o += d; }
@@ -516,7 +571,7 @@ function toggleEnd() {
   else { S.endT = null; toast(t('gameEndCleared'), 'neutral'); }
   save(); renderAll();
 }
-function loadSeg(i, tm, play) {
+function loadSegLocal(i, tm, play) {
   const ent = vids[i];
   if (!ent) { toast(t('reselectClip', (S.game.videos[i] || {}).name || ''), 'warn'); return false; }
   const go = () => { v.currentTime = Math.max(0, tm || 0); if (play) v.play().catch(() => {}); renderAll(); };
@@ -525,14 +580,130 @@ function loadSeg(i, tm, play) {
   v.addEventListener('loadedmetadata', go, { once: true });
   renderSegs(); loadVideoUI(); return true;
 }
+function loadSegYT(i, tm, play) {
+  const vid = S.game.videos[i]; if (!vid) return false;
+  if (!yt || !ytReady) { ytPendingSeek = { i, tm, play }; return true; }
+  curSeg = i;
+  yt.loadVideoById({ videoId: vid.videoId, startSeconds: Math.max(0, tm || 0) });
+  if (!play) { const once = st => { if (st.data === YT.PlayerState.CUED || st.data === YT.PlayerState.PAUSED || st.data === YT.PlayerState.PLAYING) { yt.pauseVideo(); yt.removeEventListener('onStateChange', once); } }; yt.addEventListener('onStateChange', once); }
+  renderSegs(); loadVideoUI(); return true;
+}
+function loadSeg(i, tm, play) { return isYT() ? loadSegYT(i, tm, play) : loadSegLocal(i, tm, play); }
 function seek(g) {
   if (!S.game.videos.length) return;
   const p = locate(Math.max(0, g));
-  if (p.i === curSeg && vids[p.i]) { v.currentTime = p.t; return; }
-  loadSeg(p.i, p.t, !v.paused);
+  if (p.i === curSeg) {
+    if (isYT()) { if (yt && ytReady) yt.seekTo(p.t, true); }
+    else if (vids[p.i]) v.currentTime = p.t;
+    return;
+  }
+  loadSeg(p.i, p.t, isYT() ? (ytReady && yt.getPlayerState() === YT.PlayerState.PLAYING) : !v.paused);
 }
 function clearRuntime() { vids.forEach(x => x && URL.revokeObjectURL(x.url)); vids.length = 0; curSeg = 0; v.removeAttribute('src'); v.load(); }
-function resetVideos() { clearRuntime(); S.game.videos = []; save(); renderAll(); loadVideoUI(); }
+function resetVideos() { clearRuntime(); S.game.videos = []; S.game.playlistId = ''; save(); renderAll(); loadVideoUI(); }
+
+/* ---------- YouTube provider ---------- */
+function ensureYT() {
+  return new Promise((resolve, reject) => {
+    if (window.YT && window.YT.Player) return resolve();
+    const fail = () => { const err = new Error('yt api timeout'); err.code = 'api'; reject(err); };
+    if (ytLoading) { const iv = setInterval(() => { if (window.YT && window.YT.Player) { clearInterval(iv); resolve(); } }, 200); setTimeout(() => { clearInterval(iv); if (!(window.YT && window.YT.Player)) fail(); }, 8000); return; }
+    ytLoading = true;
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { if (prev) try { prev(); } catch (e) {} resolve(); };
+    setTimeout(() => { if (!(window.YT && window.YT.Player)) fail(); }, 8000);
+  });
+}
+function createYT() {
+  return new Promise((resolve, reject) => {
+    yt = new YT.Player('ytwrap', {
+      height: '100%', width: '100%', playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+      events: {
+        onReady: () => { ytReady = true; resolve(); if (ytPendingSeek) { const p = ytPendingSeek; ytPendingSeek = null; loadSegYT(p.i, p.tm, p.play); } },
+        onError: () => { const err = new Error('yt error'); err.code = 'video'; reject(err); },
+        onStateChange: e => {
+          ytLastState = e.data;
+          if (e.data === YT.PlayerState.ENDED) { const n = curSeg + 1; if (n < S.game.videos.length) loadSeg(n, 0, true); }
+          if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.PAUSED) renderAll();
+        }
+      }
+    });
+  });
+}
+function ytPlaylistIdFrom(raw) {
+  const s = (raw || '').trim();
+  let m = s.match(/[?&]list=([A-Za-z0-9_-]+)/); if (m) return m[1];
+  if (/^[A-Za-z0-9_-]{10,}$/.test(s)) return s;
+  return null;
+}
+async function loadPlaylist(rawId) {
+  const pid = ytPlaylistIdFrom(rawId);
+  if (!pid) { toast(t('plBadId'), 'warn'); return; }
+  toast(t('plLoading'), 'neutral');
+  try {
+    await ensureYT();
+  } catch (e) { toast(t('ytApiFail'), 'warn'); return; }
+  try {
+    if (!yt) { $('#ytwrap').hidden = false; await createYT(); }
+    yt.cuePlaylist({ listType: 'playlist', list: pid });
+    const ids = await new Promise((resolve, reject) => {
+      let tries = 0;
+      const iv = setInterval(() => {
+        tries++;
+        const list = yt.getPlaylist();
+        if (list && list.length) { clearInterval(iv); resolve(list); }
+        else if (tries > 40) { clearInterval(iv); const err = new Error('empty'); err.code = 'access'; reject(err); }
+      }, 250);
+    });
+    if (!ids.length) { toast(t('plEmpty'), 'warn'); return; }
+    S.game.playlistId = pid;
+    S.game.videos = ids.map(id => ({ videoId: id, duration: null }));
+    save();
+    await preloadYTDurations();
+    curSeg = 0; loadSegYT(0, 0, false);
+    renderAll(); loadVideoUI();
+    toast(t('plLoaded', S.game.videos.length), 'made');
+  } catch (e) { toast(t('plNoAccess'), 'warn'); }
+}
+async function preloadYTDurations() {
+  for (let i = 0; i < S.game.videos.length; i++) {
+    if (S.game.videos[i].duration) continue;
+    await new Promise(resolve => {
+      let done = false;
+      const onReady = st => {
+        if (done) return;
+        if (st.data === YT.PlayerState.CUED || st.data === YT.PlayerState.PLAYING || st.data === YT.PlayerState.PAUSED) {
+          const d = yt.getDuration();
+          if (d > 0) { done = true; S.game.videos[i].duration = d; yt.removeEventListener('onStateChange', onReady); resolve(); }
+        }
+      };
+      yt.addEventListener('onStateChange', onReady);
+      yt.cueVideoById({ videoId: S.game.videos[i].videoId });
+      setTimeout(() => { if (!done) { done = true; yt.removeEventListener('onStateChange', onReady); resolve(); } }, 6000);
+    });
+  }
+  save();
+}
+function setSource(src) {
+  if (src === S.game.source) return;
+  const go = () => {
+    clearRuntime(); if (yt) { try { yt.destroy(); } catch (e) {} yt = null; ytReady = false; }
+    S.game.source = src; S.game.videos = []; S.game.playlistId = '';
+    save(); renderSrcSw(); renderAll(); loadVideoUI();
+  };
+  if (S.game.videos.length) { ask(t('plSwitchWarn'), t('switchConfirm')).then(ok => { if (ok) go(); }); }
+  else go();
+}
+function renderSrcSw() {
+  document.querySelectorAll('#srcsw [data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === S.game.source));
+  $('#pickVideo').hidden = isYT(); $('#plform').hidden = !isYT();
+  $('#theaterBtn').hidden = isYT(); $('#popBtn').hidden = isYT();
+  $('#v').hidden = isYT(); $('#ytwrap').hidden = !isYT();
+  $('#plInput').value = S.game.playlistId || '';
+}
+$('#srcsw').onclick = e => { const b = e.target.closest('[data-src]'); if (b) setSource(b.dataset.src); };
+$('#plLoad').onclick = () => loadPlaylist($('#plInput').value);
+$('#plInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); loadPlaylist($('#plInput').value); } });
 
 /* ---------- render ---------- */
 function renderKeys() {
@@ -594,6 +765,11 @@ function renderCourt() {
 }
 function renderSegs() {
   const vs = S.game.videos, el = $('#segs');
+  if (isYT()) {
+    if (vs.length < 2) { setHTML(el, ''); return; }
+    setHTML(el, vs.map((x, i) => `<button data-seg="${i}" class="${i === curSeg ? 'on' : ''}">${t('segLabel', i + 1)}<small>${x.duration ? fmt(x.duration) : ''}</small></button>`).join(''));
+    return;
+  }
   if (vs.length < 2 && !vs.some((x, i) => !vids[i])) { setHTML(el, ''); return; }
   setHTML(el, vs.map((x, i) => `<button data-seg="${i}" class="${i === curSeg && vids[i] ? 'on' : ''} ${vids[i] ? '' : 'missing'}" title="${esc(x.name)}">${t('segLabel', i + 1)}<small>${x.duration ? fmt(x.duration) : ''}</small></button>`).join('')
     + (S.events.length ? '' : `<button data-reorder>${t('reorder')}</button><button data-resetv>${t('resetVideos')}</button>`));
@@ -669,6 +845,12 @@ function parseRoster(txt) {
   return out;
 }
 function loadVideoUI() {
+  if (isYT()) {
+    const has = S.game.videos.length > 0 && ytReady;
+    $('#vempty').classList.toggle('hide', has);
+    $('#vemptyMsg').textContent = S.game.videos.length && !ytReady ? t('plLoading') : t('plPlaceholder');
+    return;
+  }
   if (pipWin) { $('#vempty').classList.remove('hide'); $('#vemptyMsg').textContent = t('detachedPlaceholder'); return; }
   const has = !!v.getAttribute('src'), names = S.game.videos.map(x => x.name);
   $('#vempty').classList.toggle('hide', has);
@@ -817,7 +999,7 @@ function onKey(e) {
   const eat = () => { e.preventDefault(); e.stopPropagation(); };
   const k = e.key;
   if (/^[0-9]$/.test(k)) { eat(); setBuf(buf.length >= 2 ? k : buf + k); return; }
-  if (k === ' ') { eat(); v.paused ? v.play() : v.pause(); return; }
+  if (k === ' ') { eat(); if (isYT()) { if (yt && ytReady) { yt.getPlayerState() === YT.PlayerState.PLAYING ? yt.pauseVideo() : yt.playVideo(); } } else { v.paused ? v.play() : v.pause(); } return; }
   if (k === 'ArrowLeft') { eat(); seek(curT() - 5); return; }
   if (k === 'ArrowRight') { eat(); seek(curT() + 5); return; }
   if (k === 'Escape') { setBuf(''); return; }
@@ -878,6 +1060,48 @@ $('#theaterBtn').onclick = e => {
   const on = document.body.classList.toggle('theater');
   e.target.textContent = on ? t('shrink') : t('enlarge'); e.target.blur();
 };
+
+/* ---------- YouTube chapter export ---------- */
+const YT_MIN_GAP = 10;
+function chapterLine(e) {
+  const label = TYPES[e.type] ? TYPES[e.type].label : (e.type === 'SUB_IN' ? t('inWord') : t('outWord'));
+  return '#' + e.player + ' ' + nameOf(e.player) + ' ' + label;
+}
+function buildChapters(segIndex) {
+  const n = S.game.videos.length, segStart = segOff(segIndex), segEnd = segIndex < n - 1 ? segStart + dur(segIndex) : Infinity;
+  const evs = S.events.filter(e => e.t >= segStart && e.t < segEnd).sort((a, b) => a.t - b.t);
+  if (!evs.length) return null;
+  const lines = [];
+  for (const e of evs) {
+    const localT = Math.max(0, e.t - segStart), line = chapterLine(e);
+    const last = lines[lines.length - 1];
+    if (last && localT - last.t < YT_MIN_GAP) last.items.push(line);
+    else lines.push({ t: localT, items: [line] });
+  }
+  if (lines.length && lines[0].t > 0) lines.unshift({ t: 0, items: [t('chapStart')] });
+  else if (lines.length) lines[0].items.unshift(t('chapStart'));
+  return lines.map(l => fmt(l.t) + ' ' + l.items.join(', ')).join('\n');
+}
+function renderChapDlg() {
+  const n = S.game.videos.length;
+  setHTML($('#chapSegs'), n > 1 ? S.game.videos.map((x, i) => `<button data-cseg="${i}" class="${i === chapSel ? 'on' : ''}">${t('segLabel', i + 1)}</button>`).join('') : '');
+  const text = buildChapters(chapSel);
+  $('#chapBox').textContent = text || t('chapNoEvents');
+}
+let chapSel = 0;
+$('#chapBtn').onclick = () => {
+  if (!S.game.videos.length) { toast(t('loadFirst'), 'warn'); return; }
+  chapSel = Math.min(curSeg, S.game.videos.length - 1);
+  renderChapDlg(); $('#chapDlg').showModal();
+};
+$('#chapSegs').onclick = e => { const b = e.target.closest('[data-cseg]'); if (!b) return; chapSel = +b.dataset.cseg; renderChapDlg(); };
+$('#chapCopy').onclick = () => {
+  const r = document.createRange(); r.selectNodeContents($('#chapBox'));
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  try { document.execCommand('copy'); toast(t('chapCopied'), 'made'); } catch (e) {}
+  sel.removeAllRanges();
+};
+$('#chapDone').onclick = () => $('#chapDlg').close();
 
 function syncRosterTxt() { $('#rosterTxt').value = S.roster.map(p => p.number + ' ' + p.name).join('\n'); }
 v.addEventListener('seeked', () => { renderRoster(); renderBox(); });
