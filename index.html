@@ -590,8 +590,8 @@ function loadSegYT(i, tm, play) {
     return true;
   }
   curSeg = i;
-  yt.loadVideoById({ videoId: vid.videoId, startSeconds: Math.max(0, tm || 0) });
-  if (!play) { const once = st => { if (st.data === YT.PlayerState.CUED || st.data === YT.PlayerState.PAUSED || st.data === YT.PlayerState.PLAYING) { yt.pauseVideo(); yt.removeEventListener('onStateChange', once); } }; yt.addEventListener('onStateChange', once); }
+  const opts = { videoId: vid.videoId, startSeconds: Math.max(0, tm || 0) };
+  if (play) yt.loadVideoById(opts); else yt.cueVideoById(opts);
   renderSegs(); loadVideoUI(); return true;
 }
 function loadSeg(i, tm, play) {
