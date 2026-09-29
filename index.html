@@ -295,7 +295,7 @@ zh: {
   totalClips:'這場共 {0} 段影片', pickAllFirst:'請先把所有影片都載入', orderLocked:'已經有標記的事件,順序不能再改', orderUpdated:'順序已更新',
   confirmClearEvents:'目前有 {0} 筆事件,載入會取代它們。要繼續嗎?', replace:'取代',
   loaded:'已載入。請重新選擇影片(全部幾段一次選)。', badJson:'這不是有效的比賽 JSON',
-  confirmNewGame:'清除目前比賽的所有事件,保留球員名單。建議先存 JSON。要繼續嗎?', clear:'清除',
+  confirmNewGame:'清除目前比賽的所有事件、影片清單和 Playlist,保留球員名單。建議先存 JSON。要繼續嗎?', clear:'清除',
   newGameDone:'新比賽,名單已保留', deleted:'已刪除',
   savedFile:'已存 {0}', downloadedFile:'已下載 {0}', fallbackMsg:'這個環境無法直接下載。複製下面內容,存成 {0}',
   reportTitleDefault:'比賽報告', reportVs:'對 {0}',
@@ -353,7 +353,7 @@ en: {
   totalClips:'{0} clips for this game', pickAllFirst:'Load all clips first', orderLocked:'Events already tagged \u2014 order is locked', orderUpdated:'Order updated',
   confirmClearEvents:'There are {0} tagged events already. Loading will replace them. Continue?', replace:'Replace',
   loaded:'Loaded. Please re-select the video clips (all at once).', badJson:'That\u2019s not a valid game JSON file',
-  confirmNewGame:'This clears all events for the current game (roster is kept). Save JSON first if you want a backup. Continue?', clear:'Clear',
+  confirmNewGame:'This clears all events, the video list and the playlist for the current game (roster is kept). Save JSON first if you want a backup. Continue?', clear:'Clear',
   newGameDone:'New game \u2014 roster kept', deleted:'Deleted',
   savedFile:'Saved {0}', downloadedFile:'Downloaded {0}', fallbackMsg:'Can\u2019t download directly here. Copy the text below and save it as {0}',
   reportTitleDefault:'Game report', reportVs:'vs {0}',
@@ -738,10 +738,17 @@ async function preloadYTDurations() {
   }
   save();
 }
+function resetYT() {
+  if (yt) { try { yt.destroy(); } catch (e) {} }
+  yt = null; ytReady = false; ytPendingSeek = null; ytLastState = -1;
+  const old = document.getElementById('ytwrap'); if (old) old.remove();
+  const d = document.createElement('div'); d.id = 'ytwrap'; d.hidden = !isYT();
+  $('.vwrap').insertBefore(d, $('#vempty'));
+}
 function setSource(src) {
   if (src === S.game.source) return;
   const go = () => {
-    clearRuntime(); if (yt) { try { yt.destroy(); } catch (e) {} yt = null; ytReady = false; }
+    clearRuntime(); resetYT();
     S.game.source = src; S.game.videos = []; S.game.playlistId = '';
     save(); renderSrcSw(); renderAll(); loadVideoUI();
   };
@@ -1041,7 +1048,7 @@ $('#jfile').onchange = e => {
       const d = JSON.parse(rd.result);
       if (!Array.isArray(d.events) || !Array.isArray(d.roster)) throw new Error('bad');
       if (S.events.length && !(await ask(t('confirmClearEvents', S.events.length), t('replace')))) return;
-      S = Object.assign(blank(), d); delete S.app; delete S.version; normalize(); if (!S.roster.length) applyDefaultRoster(); clearRuntime(); save(); syncRosterTxt(); renderAll(); loadVideoUI();
+      S = Object.assign(blank(), d); delete S.app; delete S.version; normalize(); if (!S.roster.length) applyDefaultRoster(); clearRuntime(); resetYT(); save(); syncRosterTxt(); renderSrcSw(); renderAll(); loadVideoUI();
       toast(t('loaded'), 'made');
     } catch (err) { toast(t('badJson'), 'warn'); }
   };
@@ -1049,8 +1056,8 @@ $('#jfile').onchange = e => {
 };
 $('#newBtn').onclick = async () => {
   if (!(await ask(t('confirmNewGame'), t('clear')))) return;
-  resetVideos(); S.events = []; S.clock_stopped = []; S.stopStart = null; S.endT = null; S.game = { opponent:'', date:today(), videos:[] };
-  save(); renderAll(); loadVideoUI(); toast(t('newGameDone'), 'neutral');
+  resetVideos(); resetYT(); pausePos = null; S.events = []; S.clock_stopped = []; S.stopStart = null; S.endT = null; S.game = { opponent:'', date:today(), source:S.game.source, playlistId:'', videos:[] };
+  save(); renderSrcSw(); renderAll(); loadVideoUI(); toast(t('newGameDone'), 'neutral');
 };
 $('#expClose').onclick = () => $('#expDlg').close();
 $('#expCopy').onclick = () => { $('#expTxt').select(); try { document.execCommand('copy'); } catch (e) {} };
