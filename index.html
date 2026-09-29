@@ -582,22 +582,33 @@ function loadSegLocal(i, tm, play) {
 }
 function loadSegYT(i, tm, play) {
   const vid = S.game.videos[i]; if (!vid) return false;
-  if (!yt || !ytReady) { ytPendingSeek = { i, tm, play }; return true; }
+  if (!yt || !ytReady) {
+    ytPendingSeek = { i, tm, play };
+    ensureYT()
+      .then(() => { if (!yt) { $('#ytwrap').hidden = false; return createYT(); } })
+      .catch(() => { toast(t('ytApiFail'), 'warn'); ytPendingSeek = null; });
+    return true;
+  }
   curSeg = i;
   yt.loadVideoById({ videoId: vid.videoId, startSeconds: Math.max(0, tm || 0) });
   if (!play) { const once = st => { if (st.data === YT.PlayerState.CUED || st.data === YT.PlayerState.PAUSED || st.data === YT.PlayerState.PLAYING) { yt.pauseVideo(); yt.removeEventListener('onStateChange', once); } }; yt.addEventListener('onStateChange', once); }
   renderSegs(); loadVideoUI(); return true;
 }
-function loadSeg(i, tm, play) { return isYT() ? loadSegYT(i, tm, play) : loadSegLocal(i, tm, play); }
+function loadSeg(i, tm, play) {
+  const ent = S.game.videos[i];
+  const useYT = ent && Object.prototype.hasOwnProperty.call(ent, 'videoId');
+  return useYT ? loadSegYT(i, tm, play) : loadSegLocal(i, tm, play);
+}
 function seek(g) {
   if (!S.game.videos.length) return;
   const p = locate(Math.max(0, g));
+  const ent = S.game.videos[p.i], useYT = ent && Object.prototype.hasOwnProperty.call(ent, 'videoId');
   if (p.i === curSeg) {
-    if (isYT()) { if (yt && ytReady) yt.seekTo(p.t, true); }
+    if (useYT) { if (yt && ytReady) yt.seekTo(p.t, true); }
     else if (vids[p.i]) v.currentTime = p.t;
     return;
   }
-  loadSeg(p.i, p.t, isYT() ? (ytReady && yt.getPlayerState() === YT.PlayerState.PLAYING) : !v.paused);
+  loadSeg(p.i, p.t, useYT ? (ytReady && yt.getPlayerState() === YT.PlayerState.PLAYING) : !v.paused);
 }
 function clearRuntime() { vids.forEach(x => x && URL.revokeObjectURL(x.url)); vids.length = 0; curSeg = 0; v.removeAttribute('src'); v.load(); }
 function resetVideos() { clearRuntime(); S.game.videos = []; S.game.playlistId = ''; save(); renderAll(); loadVideoUI(); }
@@ -668,19 +679,22 @@ async function loadPlaylist(rawId) {
 async function preloadYTDurations() {
   for (let i = 0; i < S.game.videos.length; i++) {
     if (S.game.videos[i].duration) continue;
+    const wantId = S.game.videos[i].videoId;
     await new Promise(resolve => {
       let done = false;
-      const onReady = st => {
+      const check = () => {
         if (done) return;
-        if (st.data === YT.PlayerState.CUED || st.data === YT.PlayerState.PLAYING || st.data === YT.PlayerState.PAUSED) {
-          const d = yt.getDuration();
-          if (d > 0) { done = true; S.game.videos[i].duration = d; yt.removeEventListener('onStateChange', onReady); resolve(); }
-        }
+        const data = yt.getVideoData ? yt.getVideoData() : null;
+        if (!data || data.video_id !== wantId) return;
+        const d = yt.getDuration();
+        if (d > 0) { done = true; yt.removeEventListener('onStateChange', onReady); resolve(d); }
       };
+      const onReady = () => check();
       yt.addEventListener('onStateChange', onReady);
-      yt.cueVideoById({ videoId: S.game.videos[i].videoId });
-      setTimeout(() => { if (!done) { done = true; yt.removeEventListener('onStateChange', onReady); resolve(); } }, 6000);
-    });
+      yt.cueVideoById({ videoId: wantId });
+      const iv = setInterval(check, 200);
+      setTimeout(() => { clearInterval(iv); if (!done) { done = true; yt.removeEventListener('onStateChange', onReady); resolve(0); } }, 6000);
+    }).then(d => { if (d > 0) S.game.videos[i].duration = d; });
   }
   save();
 }
