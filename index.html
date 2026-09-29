@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>比賽標記器</title>
+<title>比賽標記器 · Game Tagger</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -30,6 +30,9 @@ input,textarea{background:var(--deep);border:1px solid var(--line);border-radius
 .top h1{margin:0 8px 0 0;font:600 26px 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:var(--wood)}
 .primary{background:var(--wood);border-color:var(--wood);color:#1d1608;font-weight:600}
 .primary:hover{border-color:#fff}
+.langsw{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;padding:0}
+.langsw button{border:0;border-radius:0;padding:6px 10px;background:var(--panel2)}
+.langsw button.on{background:var(--wood);color:#1d1608;font-weight:600}
 
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
 @media(max-width:960px){.grid{grid-template-columns:1fr}}
@@ -124,17 +127,18 @@ dialog textarea{width:100%;height:220px}
 <div class="app">
   <header class="top">
     <div class="l">
-      <h1>比賽標記器</h1>
-      <input id="opp" placeholder="對手" size="14" aria-label="對手">
-      <input id="date" type="date" aria-label="日期">
+      <h1 id="t_appTitle"></h1>
+      <input id="opp" size="14">
+      <input id="date" type="date">
     </div>
     <div class="r">
-      <button class="primary" id="pickVideo">選擇影片(可多選)</button>
-      <button id="csvBtn">存 CSV</button>
-      <button id="rptBtn">家長報告</button>
-      <button id="jsonBtn">存 JSON</button>
-      <button id="impBtn">載入 JSON</button>
-      <button id="newBtn">新比賽</button>
+      <div class="langsw" id="langsw"><button data-lang="zh">中文</button><button data-lang="en">EN</button></div>
+      <button class="primary" id="pickVideo"></button>
+      <button id="csvBtn"></button>
+      <button id="rptBtn"></button>
+      <button id="jsonBtn"></button>
+      <button id="impBtn"></button>
+      <button id="newBtn"></button>
       <input type="file" id="vfile" accept="video/*" multiple hidden>
       <input type="file" id="jfile" accept=".json,application/json" hidden>
     </div>
@@ -144,14 +148,14 @@ dialog textarea{width:100%;height:220px}
     <section class="stage">
       <div class="vwrap">
         <video id="v" controls playsinline></video>
-        <div class="vempty" id="vempty"><div id="vemptyMsg">選擇比賽影片開始標記</div></div>
+        <div class="vempty" id="vempty"><div id="vemptyMsg"></div></div>
       </div>
 
-      <div class="vtools"><button id="theaterBtn">放大影片</button><button id="popBtn">分離播放器</button></div>
+      <div class="vtools"><button id="theaterBtn"></button><button id="popBtn"></button></div>
       <div class="segs" id="segs"></div>
 
       <div class="bar">
-        <div class="buf" aria-live="polite"><small>背號</small><span class="big" id="buf">–</span><span class="bufname" id="bufName"></span></div>
+        <div class="buf" aria-live="polite"><small id="t_jerseyLabel"></small><span class="big" id="buf">–</span><span class="bufname" id="bufName"></span></div>
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
         <div class="badges">
           <span class="court ok" id="courtBadge" hidden></span>
@@ -162,21 +166,21 @@ dialog textarea{width:100%;height:220px}
       </div>
 
       <div class="keys" id="keys"></div>
-      <p class="help">先打背號(1–2 位數),再按事件鍵。只有在場上的球員才能記錄事件,場上必須剛好 5 人。點右邊名單也可以選球員。影片放在暫停或播放都行,時間點以按下事件鍵的瞬間為準。</p>
+      <p class="help" id="t_help"></p>
     </section>
 
     <aside class="side">
       <section class="card">
-        <h2><span>球員名單</span><span class="muted" id="onCount"></span></h2>
+        <h2><span id="t_rosterTitle"></span><span class="muted" id="onCount"></span></h2>
         <div id="roster"></div>
         <details id="rosterDetails">
-          <summary>編輯名單</summary>
-          <textarea id="rosterTxt" placeholder="每行一位:背號 名字&#10;7 Jason&#10;12 Tim&#10;23 Leo"></textarea>
-          <button id="applyRoster" class="primary">套用名單</button>
+          <summary id="t_editRoster"></summary>
+          <textarea id="rosterTxt"></textarea>
+          <button id="applyRoster" class="primary"></button>
         </details>
       </section>
       <section class="card">
-        <h2><span>事件紀錄 <span class="muted" id="logCount"></span></span><button id="subOnly" style="padding:2px 10px">只看換人</button></h2>
+        <h2><span id="t_eventLog"></span><span class="muted" id="logCount"></span><button id="subOnly" style="padding:2px 10px"></button></h2>
         <div id="log"></div>
       </section>
     </aside>
@@ -186,7 +190,7 @@ dialog textarea{width:100%;height:220px}
     <h2><span>Box score</span><span class="muted" id="boxNote"></span></h2>
     <table>
       <thead><tr>
-        <th class="l">球員</th><th class="min">MIN</th><th>PTS</th><th>2PT</th><th>3PT</th><th>FT</th>
+        <th class="l" id="t_playerCol"></th><th class="min">MIN</th><th>PTS</th><th>2PT</th><th>3PT</th><th>FT</th>
         <th>REB</th><th>AST</th><th>STL</th><th>TO</th>
       </tr></thead>
       <tbody id="boxBody"></tbody>
@@ -197,19 +201,19 @@ dialog textarea{width:100%;height:220px}
 
 <dialog id="askDlg">
   <p id="askMsg"></p>
-  <div class="row"><button id="askNo">取消</button><button id="askOk" class="primary">確定</button></div>
+  <div class="row"><button id="askNo"></button><button id="askOk" class="primary"></button></div>
 </dialog>
 <dialog id="ordDlg">
-  <h3 style="margin:0 0 4px">確認影片順序</h3>
-  <p class="muted" style="margin:0 0 10px">第 1 段要是最早的。時間是檔案修改時間,可能和實際錄影時間有落差,不確定就用 ↑ ↓ 調整。</p>
-  <div class="row" style="justify-content:flex-start;margin:0 0 8px"><button id="ordTime">按檔案時間</button><button id="ordName">按檔名</button></div>
+  <h3 style="margin:0 0 4px" id="t_ordTitle"></h3>
+  <p class="muted" style="margin:0 0 10px" id="t_ordHint"></p>
+  <div class="row" style="justify-content:flex-start;margin:0 0 8px"><button id="ordTime"></button><button id="ordName"></button></div>
   <div id="ordList"></div>
-  <div class="row"><button id="ordNo">取消</button><button id="ordOk" class="primary">確認順序</button></div>
+  <div class="row"><button id="ordNo"></button><button id="ordOk" class="primary"></button></div>
 </dialog>
 <dialog id="expDlg">
   <p id="expMsg" class="muted"></p>
   <textarea id="expTxt" readonly></textarea>
-  <div class="row"><button id="expCopy">複製</button><button id="expClose" class="primary">關閉</button></div>
+  <div class="row"><button id="expCopy"></button><button id="expClose" class="primary"></button></div>
 </dialog>
 
 <script>
@@ -217,6 +221,137 @@ dialog textarea{width:100%;height:220px}
 'use strict';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- i18n ---------- */
+const STR = {
+zh: {
+  appTitle:'比賽標記器', opponent:'對手', date:'日期',
+  pickVideo:'選擇影片(可多選)', saveCsv:'存 CSV', parentReport:'家長報告', saveJson:'存 JSON', loadJson:'載入 JSON', newGame:'新比賽',
+  enlarge:'放大影片', shrink:'縮小影片', detach:'分離播放器', retract:'收回播放器',
+  selectVideoPrompt:'選擇比賽影片開始標記(這場有幾段,就一次全選)',
+  detachedPlaceholder:'播放器在獨立視窗裡。按「收回播放器」放回來。',
+  dataStillHere:'資料還在。請重新選擇這些影片(可一次多選):',
+  jerseyLabel:'背號',
+  help:'先打背號(1–2 位數),再按事件鍵。只有在場上的球員才能記錄事件,場上必須剛好 5 人。點右邊名單也可以選球員。影片放在暫停或播放都行,時間點以按下事件鍵的瞬間為準。',
+  rosterTitle:'球員名單', editRoster:'編輯名單', applyRoster:'套用名單',
+  rosterPlaceholder:'每行一位:背號 名字\n7 Jason\n12 Tim\n23 Leo',
+  rosterEmpty:'還沒有名單。在下方「編輯名單」貼上,每行一位,例如「7 Jason」。',
+  eventLog:'事件紀錄', subsOnly:'只看換人', noMatch:'沒有符合的事件。', deleteThis:'刪除這筆', entries:'筆',
+  playerCol:'球員', team:'Team',
+  onCourt:'場上',
+  courtOk:'場上 5/5', courtLow:'場上只有 {0} 人,需要 5 人', courtHigh:'場上 {0} 人,超過 5 人',
+  confirm:'確定', cancel:'取消',
+  ordTitle:'確認影片順序', ordHint:'第 1 段要是最早的。時間是檔案修改時間,可能和實際錄影時間有落差,不確定就用 ↑ ↓ 調整。',
+  sortByTime:'按檔案時間', sortByName:'按檔名', confirmOrder:'確認順序', moveUp:'上移', moveDown:'下移',
+  copy:'複製', close:'關閉',
+  segLabel:'第{0}段', reorder:'調整順序', resetVideos:'重設影片清單',
+  needJersey:'先輸入背號', notInRoster:'#{0} 不在名單裡',
+  alreadyOn:'{0} 已經在場上', alreadyOff:'{0} 本來就在場下',
+  courtFull:'場上已經有 5 人({0}),請先讓一位下場',
+  offCourtBlock:'{0} 不在場上,不能記錄。先讓他上場(I + 背號)',
+  moreThan5:' · 場上超過 5 人', under5:' · 場上只有 {0} 人,記得補滿 5 人',
+  noUndo:'沒有可以復原的事件', undone:'已復原 #{0} {1}',
+  clockStopped:'時鐘停止,從 {0}', clockResumed:'時鐘繼續',
+  gameEndMarked:'已標記比賽結束 {0}', gameEndCleared:'已取消比賽結束標記',
+  reselectClip:'請重新選擇「{0}」這段影片',
+  clockStoppedBadge:'時鐘停止中 · 從 {0}', gameEndBadge:'比賽結束 {0}',
+  notInRosterShort:'不在名單', unnamed:'(未命名)',
+  onCourtWord:'場上', offCourtWord:'場下',
+  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員',
+  minutesNote:'尚未標記比賽結束:場上球員的時間算到目前為止',
+  loadFirst:'先載入影片', detachedHint:'已分離。把視窗拖到第二個螢幕,拉角落放大',
+  pipHint:'已開啟子母畫面(在小視窗裡快捷鍵無效,標記請回主視窗)', noDetach:'這個瀏覽器不能分離播放器,可以改用「放大影片」',
+  loadingClips:'讀取 {0} 段影片…', cantRead:'無法讀取 {0}', cancelledNoAdd:'已取消,沒有加入新影片',
+  totalClips:'這場共 {0} 段影片', pickAllFirst:'請先把所有影片都載入', orderLocked:'已經有標記的事件,順序不能再改', orderUpdated:'順序已更新',
+  confirmClearEvents:'目前有 {0} 筆事件,載入會取代它們。要繼續嗎?', replace:'取代',
+  loaded:'已載入。請重新選擇影片(全部幾段一次選)。', badJson:'這不是有效的比賽 JSON',
+  confirmNewGame:'清除目前比賽的所有事件,保留球員名單。建議先存 JSON。要繼續嗎?', clear:'清除',
+  newGameDone:'新比賽,名單已保留', deleted:'已刪除',
+  savedFile:'已存 {0}', downloadedFile:'已下載 {0}', fallbackMsg:'這個環境無法直接下載。複製下面內容,存成 {0}',
+  reportTitleDefault:'比賽報告', reportVs:'對 {0}',
+  reportNote:'MIN = 上場時間(不含暫停、中場)。2PT / 3PT / FT 顯示為命中-出手。數據由教練從比賽影片標記。'
+},
+en: {
+  appTitle:'Game Tagger', opponent:'Opponent', date:'Date',
+  pickVideo:'Select video (multi)', saveCsv:'Save CSV', parentReport:'Parent report', saveJson:'Save JSON', loadJson:'Load JSON', newGame:'New game',
+  enlarge:'Enlarge video', shrink:'Shrink video', detach:'Detach player', retract:'Bring back player',
+  selectVideoPrompt:'Select game video to start tagging (select all clips at once)',
+  detachedPlaceholder:'Player is in a separate window. Click "Bring back player" to return it.',
+  dataStillHere:'Data is still here. Please re-select these clips (multi-select):',
+  jerseyLabel:'Jersey #',
+  help:'Type the jersey number (1–2 digits), then press an event key. Only on-court players can be tagged, and exactly 5 must be on court. You can also click a player in the roster. Works while playing or paused — the timestamp is taken the instant you press the event key.',
+  rosterTitle:'Roster', editRoster:'Edit roster', applyRoster:'Apply roster',
+  rosterPlaceholder:'One per line: number name\n7 Jason\n12 Tim\n23 Leo',
+  rosterEmpty:'No roster yet. Paste one below under "Edit roster", one per line, e.g. "7 Jason".',
+  eventLog:'Event log', subsOnly:'Subs only', noMatch:'No matching events.', deleteThis:'Delete this entry', entries:'entries',
+  playerCol:'Player', team:'Team',
+  onCourt:'On court',
+  courtOk:'On court 5/5', courtLow:'Only {0} on court, need 5', courtHigh:'{0} on court, over 5',
+  confirm:'OK', cancel:'Cancel',
+  ordTitle:'Confirm clip order', ordHint:'Clip 1 should be the earliest. Order is by file modified time, which may not match actual recording time — use the arrows if unsure.',
+  sortByTime:'Sort by time', sortByName:'Sort by name', confirmOrder:'Confirm order', moveUp:'Move up', moveDown:'Move down',
+  copy:'Copy', close:'Close',
+  segLabel:'Clip {0}', reorder:'Reorder', resetVideos:'Reset video list',
+  needJersey:'Enter a jersey number first', notInRoster:'#{0} is not in the roster',
+  alreadyOn:'{0} is already on court', alreadyOff:'{0} is already off court',
+  courtFull:'5 already on court ({0}) — sub someone out first',
+  offCourtBlock:'{0} is off court, can\u2019t log this. Sub them in first (I + number)',
+  moreThan5:' \u00b7 over 5 on court', under5:' \u00b7 only {0} on court, sub in to reach 5',
+  noUndo:'Nothing to undo', undone:'Undid #{0} {1}',
+  clockStopped:'Clock stopped, from {0}', clockResumed:'Clock resumed',
+  gameEndMarked:'Marked game end at {0}', gameEndCleared:'Cleared game-end marker',
+  reselectClip:'Please re-select the clip "{0}"',
+  clockStoppedBadge:'Clock stopped \u00b7 from {0}', gameEndBadge:'Game ended {0}',
+  notInRosterShort:'not on roster', unnamed:'(unnamed)',
+  onCourtWord:'on court', offCourtWord:'off court',
+  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players',
+  minutesNote:'Game end not marked yet \u2014 on-court time counts up to now',
+  loadFirst:'Load a video first', detachedHint:'Detached. Drag the window to a second screen and enlarge it',
+  pipHint:'Picture-in-picture opened (shortcuts don\u2019t work in the small window \u2014 tag from the main window)', noDetach:'This browser can\u2019t detach the player \u2014 try "Enlarge video" instead',
+  loadingClips:'Reading {0} clips\u2026', cantRead:'Couldn\u2019t read {0}', cancelledNoAdd:'Cancelled, no clips added',
+  totalClips:'{0} clips for this game', pickAllFirst:'Load all clips first', orderLocked:'Events already tagged \u2014 order is locked', orderUpdated:'Order updated',
+  confirmClearEvents:'There are {0} tagged events already. Loading will replace them. Continue?', replace:'Replace',
+  loaded:'Loaded. Please re-select the video clips (all at once).', badJson:'That\u2019s not a valid game JSON file',
+  confirmNewGame:'This clears all events for the current game (roster is kept). Save JSON first if you want a backup. Continue?', clear:'Clear',
+  newGameDone:'New game \u2014 roster kept', deleted:'Deleted',
+  savedFile:'Saved {0}', downloadedFile:'Downloaded {0}', fallbackMsg:'Can\u2019t download directly here. Copy the text below and save it as {0}',
+  reportTitleDefault:'Game report', reportVs:'vs {0}',
+  reportNote:'MIN = time on court (timeouts and halftime excluded). 2PT / 3PT / FT shown as made-attempted. Stats tagged by the coach from game video.'
+}
+};
+let LANG = localStorage.getItem('hoops-tagger-lang') || ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+if (!STR[LANG]) LANG = 'en';
+function t(key, ...args) {
+  let s = (STR[LANG] && STR[LANG][key] != null) ? STR[LANG][key] : (STR.en[key] != null ? STR.en[key] : key);
+  args.forEach((a, i) => { s = s.split('{' + i + '}').join(a); });
+  return s;
+}
+function applyLang() {
+  document.documentElement.lang = LANG === 'zh' ? 'zh-Hant' : 'en';
+  document.title = t('appTitle');
+  document.querySelectorAll('[id^="t_"]').forEach(el => { el.textContent = t(el.id.slice(2)); });
+  $('#opp').placeholder = t('opponent'); $('#opp').setAttribute('aria-label', t('opponent'));
+  $('#date').setAttribute('aria-label', t('date'));
+  $('#pickVideo').textContent = t('pickVideo');
+  $('#csvBtn').textContent = t('saveCsv'); $('#rptBtn').textContent = t('parentReport');
+  $('#jsonBtn').textContent = t('saveJson'); $('#impBtn').textContent = t('loadJson'); $('#newBtn').textContent = t('newGame');
+  $('#theaterBtn').textContent = document.body.classList.contains('theater') ? t('shrink') : t('enlarge');
+  $('#popBtn').textContent = pipWin ? t('retract') : t('detach');
+  $('#rosterTxt').placeholder = t('rosterPlaceholder');
+  $('#applyRoster').textContent = t('applyRoster');
+  $('#subOnly').textContent = t('subsOnly');
+  $('#askOk').textContent = t('confirm'); $('#askNo').textContent = t('cancel');
+  $('#ordTime').textContent = t('sortByTime'); $('#ordName').textContent = t('sortByName');
+  $('#ordNo').textContent = t('cancel'); $('#ordOk').textContent = t('confirmOrder');
+  $('#expCopy').textContent = t('copy'); $('#expClose').textContent = t('close');
+  document.querySelectorAll('#langsw [data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === LANG));
+  renderKeys(); loadVideoUI(); renderAll();
+}
+$('#langsw').onclick = e => {
+  const b = e.target.closest('[data-lang]'); if (!b) return;
+  LANG = b.dataset.lang; localStorage.setItem('hoops-tagger-lang', LANG); applyLang();
+};
+
 const STORE = 'hoops-tagger-v1';
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
 const blank = () => ({ game:{ opponent:'', date:today(), videos:[] }, roster:[], events:[], clock_stopped:[], stopStart:null, endT:null });
@@ -239,11 +374,11 @@ const TYPES = {
   '3PT_made':{k:'D',label:'3PT made',cls:'made'}, '3PT_miss':{k:'F',label:'3PT miss',cls:'miss'},
   'FT_made':{k:'G',label:'FT made',cls:'made'},   'FT_miss':{k:'H',label:'FT miss',cls:'miss'},
   'REB':{k:'R',label:'REB',cls:'neutral'}, 'AST':{k:'T',label:'AST',cls:'neutral'},
-  'STL':{k:'Y',label:'STL',cls:'neutral'}, 'TO':{k:'U',label:'TO',cls:'bad'},
-  'SUB_IN':{label:'上場',cls:'neutral'}, 'SUB_OUT':{label:'下場',cls:'neutral'}
+  'STL':{k:'Y',label:'STL',cls:'neutral'}, 'TO':{k:'U',label:'TO',cls:'bad'}
 };
+const subLabel = type => type === 'SUB_IN' ? t('onCourtWord') : t('offCourtWord');
 const KEYMAP = {};
-for (const [t, o] of Object.entries(TYPES)) if (o.k) KEYMAP[o.k] = t;
+for (const [ty, o] of Object.entries(TYPES)) if (o.k) KEYMAP[o.k] = ty;
 
 const v = $('#v');
 const vids = []; let curSeg = 0; let pipWin = null;
@@ -255,28 +390,28 @@ function locate(g) {
   for (let i = 0; i < n; i++) { const d = dur(i); if (g < o + d || i === n - 1) return { i, t: Math.max(0, g - o) }; o += d; }
   return { i: 0, t: Math.max(0, g) };
 }
-const fmtPos = g => { if (S.game.videos.length > 1) { const p = locate(g); return '第' + (p.i + 1) + '段 ' + fmt(p.t); } return fmt(g); };
-const fmtLog = g => { if (S.game.videos.length > 1) { const p = locate(g); return (p.i + 1) + '·' + fmt(p.t); } return fmt(g); };
+const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0'); };
+const fmtPos = g => { if (S.game.videos.length > 1) { const p = locate(g); return t('segLabel', p.i + 1) + ' ' + fmt(p.t); } return fmt(g); };
+const fmtLog = g => { if (S.game.videos.length > 1) { const p = locate(g); return (p.i + 1) + '\u00b7' + fmt(p.t); } return fmt(g); };
 const stamp = () => Math.floor(curT() * 100) / 100;
 const nameOf = n => (S.roster.find(p => p.number === n) || {}).name || '';
-const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0'); };
 const setHTML = (el, html) => { if (el._h !== html) { el.innerHTML = html; el._h = html; } };
 
 /* ---------- toast + buffer ---------- */
 let tt;
 function toast(msg, cls) {
-  const t = $('#toast'); t.textContent = msg; t.className = 'toast show ' + (cls || '');
-  clearTimeout(tt); tt = setTimeout(() => t.className = 'toast', 2400);
+  const el = $('#toast'); el.textContent = msg; el.className = 'toast show ' + (cls || '');
+  clearTimeout(tt); tt = setTimeout(() => el.className = 'toast', 2400);
 }
 let buf = '', bufTimer;
 function setBuf(s, ms) {
-  buf = s; $('#buf').textContent = s || '–';
+  buf = s; $('#buf').textContent = s || '\u2013';
   const bn = $('#bufName');
   if (!s) { bn.textContent = ''; bn.className = 'bufname'; }
   else {
     const n = parseInt(s, 10), p = S.roster.find(x => x.number === n);
-    if (!p) { bn.className = 'bufname off'; bn.textContent = '不在名單'; }
-    else { const on = onCourtAt(n, stamp()); bn.className = 'bufname ' + (on ? 'on' : 'off'); bn.innerHTML = esc(p.name || '(未命名)') + '<small>' + (on ? '場上' : '場下') + '</small>'; }
+    if (!p) { bn.className = 'bufname off'; bn.textContent = t('notInRosterShort'); }
+    else { const on = onCourtAt(n, stamp()); bn.className = 'bufname ' + (on ? 'on' : 'off'); bn.innerHTML = esc(p.name || t('unnamed')) + '<small>' + (on ? t('onCourtWord') : t('offCourtWord')) + '</small>'; }
   }
   clearTimeout(bufTimer);
   if (s) bufTimer = setTimeout(() => setBuf(''), ms || 2500);
@@ -342,48 +477,49 @@ function computeStats() {
 /* ---------- actions ---------- */
 function tag(type, forced) {
   const src = forced != null ? String(forced) : buf;
-  if (!src) { toast('先輸入背號', 'warn'); return; }
+  if (!src) { toast(t('needJersey'), 'warn'); return; }
   const n = parseInt(src, 10);
-  if (!S.roster.some(p => p.number === n)) { toast('#' + n + ' 不在名單裡', 'warn'); setBuf(''); return; }
-  const t = stamp(), who = '#' + n + ' ' + nameOf(n);
+  if (!S.roster.some(p => p.number === n)) { toast(t('notInRoster', n), 'warn'); setBuf(''); return; }
+  const tm = stamp(), who = '#' + n + ' ' + nameOf(n);
   if (type === 'SUB_IN') {
-    if (onCourtAt(n, t)) { toast(who + ' 已經在場上', 'warn'); setBuf(''); return; }
-    if (maxCourtFrom(S.events.concat([{ t, player: n, type }]), t) > 5) {
-      const on = [...courtAt(t)].sort((a, b) => a - b).map(x => '#' + x).join(' ');
-      toast('場上已經有 5 人(' + on + '),請先讓一位下場', 'warn'); setBuf(''); return;
+    if (onCourtAt(n, tm)) { toast(t('alreadyOn', who), 'warn'); setBuf(''); return; }
+    if (maxCourtFrom(S.events.concat([{ t: tm, player: n, type }]), tm) > 5) {
+      const on = [...courtAt(tm)].sort((a, b) => a - b).map(x => '#' + x).join(' ');
+      toast(t('courtFull', on), 'warn'); setBuf(''); return;
     }
   } else if (type === 'SUB_OUT') {
-    if (!onCourtAt(n, t)) { toast(who + ' 本來就在場下', 'warn'); setBuf(''); return; }
-  } else if (!onCourtAt(n, t)) {
-    toast(who + ' 不在場上,不能記錄。先讓他上場(I + 背號)', 'warn'); setBuf(''); return;
+    if (!onCourtAt(n, tm)) { toast(t('alreadyOff', who), 'warn'); setBuf(''); return; }
+  } else if (!onCourtAt(n, tm)) {
+    toast(t('offCourtBlock', who), 'warn'); setBuf(''); return;
   }
-  S.events.push({ t, player: n, type });
+  S.events.push({ t: tm, player: n, type });
   save(); setBuf('');
   renderAll();
-  const c = courtAt(t).size;
-  const warn = c < 5 ? ' · 場上只有 ' + c + ' 人,記得補滿 5 人' : c > 5 ? ' · 場上超過 5 人' : '';
-  toast(who + ' · ' + TYPES[type].label + warn, warn ? 'warn' : TYPES[type].cls);
+  const c = courtAt(tm).size;
+  const warn = c < 5 ? t('under5', c) : c > 5 ? t('moreThan5') : '';
+  const label = TYPES[type] ? TYPES[type].label : subLabel(type);
+  toast(who + ' \u00b7 ' + label + warn, warn ? 'warn' : (TYPES[type] ? TYPES[type].cls : 'neutral'));
 }
 function undo() {
   const e = S.events.pop();
-  if (!e) { toast('沒有可以復原的事件', 'warn'); return; }
-  save(); renderAll(); toast('已復原 #' + e.player + ' ' + TYPES[e.type].label, 'warn');
+  if (!e) { toast(t('noUndo'), 'warn'); return; }
+  save(); renderAll(); toast(t('undone', '#' + e.player, TYPES[e.type] ? TYPES[e.type].label : subLabel(e.type)), 'warn');
 }
 function toggleStop() {
-  const t = stamp();
-  if (S.stopStart == null) { S.stopStart = t; toast('時鐘停止,從 ' + fmtPos(t), 'warn'); }
-  else { S.clock_stopped.push({ start: Math.min(S.stopStart, t), end: Math.max(S.stopStart, t) }); S.stopStart = null; toast('時鐘繼續', 'made'); }
+  const tm = stamp();
+  if (S.stopStart == null) { S.stopStart = tm; toast(t('clockStopped', fmtPos(tm)), 'warn'); }
+  else { S.clock_stopped.push({ start: Math.min(S.stopStart, tm), end: Math.max(S.stopStart, tm) }); S.stopStart = null; toast(t('clockResumed'), 'made'); }
   save(); renderAll();
 }
 function toggleEnd() {
-  if (S.endT == null) { S.endT = stamp(); toast('已標記比賽結束 ' + fmtPos(S.endT), 'neutral'); }
-  else { S.endT = null; toast('已取消比賽結束標記', 'neutral'); }
+  if (S.endT == null) { S.endT = stamp(); toast(t('gameEndMarked', fmtPos(S.endT)), 'neutral'); }
+  else { S.endT = null; toast(t('gameEndCleared'), 'neutral'); }
   save(); renderAll();
 }
-function loadSeg(i, t, play) {
+function loadSeg(i, tm, play) {
   const ent = vids[i];
-  if (!ent) { toast('請重新選擇「' + ((S.game.videos[i] || {}).name || '') + '」這段影片', 'warn'); return false; }
-  const go = () => { v.currentTime = Math.max(0, t || 0); if (play) v.play().catch(() => {}); renderAll(); };
+  if (!ent) { toast(t('reselectClip', (S.game.videos[i] || {}).name || ''), 'warn'); return false; }
+  const go = () => { v.currentTime = Math.max(0, tm || 0); if (play) v.play().catch(() => {}); renderAll(); };
   if (curSeg === i && v.getAttribute('src') === ent.url) { go(); return true; }
   curSeg = i; v.src = ent.url;
   v.addEventListener('loadedmetadata', go, { once: true });
@@ -401,49 +537,51 @@ function resetVideos() { clearRuntime(); S.game.videos = []; save(); renderAll()
 /* ---------- render ---------- */
 function renderKeys() {
   const btn = (k, label, cls, act) => `<button class="${cls}" data-act="${act}"><kbd>${k}</kbd>${label}</button>`;
-  const ev = Object.entries(TYPES).filter(([,o]) => o.k).map(([t,o]) => btn(o.k, o.label, o.cls, t)).join('');
+  const ev = Object.entries(TYPES).filter(([,o]) => o.k).map(([ty,o]) => btn(o.k, o.label, o.cls, ty)).join('');
   $('#keys').innerHTML = ev
-    + btn('I','上場','ctl','SUB_IN') + btn('O','下場','ctl','SUB_OUT')
-    + btn('P','時鐘停止','ctl','STOP') + btn('Z','復原','ctl','UNDO') + btn('E','比賽結束','ctl','END');
+    + btn('I', t('onCourtWord'), 'ctl', 'SUB_IN') + btn('O', t('offCourtWord'), 'ctl', 'SUB_OUT')
+    + btn('P', LANG === 'zh' ? '\u6642\u9418\u505c\u6b62' : 'Clock stop', 'ctl', 'STOP')
+    + btn('Z', LANG === 'zh' ? '\u5fa9\u539f' : 'Undo', 'ctl', 'UNDO')
+    + btn('E', LANG === 'zh' ? '\u6bd4\u8cfd\u7d50\u675f' : 'Game end', 'ctl', 'END');
 }
 function renderRoster() {
-  const t = curT(), st = new Map(computeStats().map(r => [r.n, r])), sel = buf ? parseInt(buf, 10) : null;
+  const tm = curT(), st = new Map(computeStats().map(r => [r.n, r])), sel = buf ? parseInt(buf, 10) : null;
   let onN = 0;
   const html = S.roster.length ? S.roster.map(p => {
-    const r = st.get(p.number) || {pts:0, sec:0}, on = onCourtAt(p.number, t); if (on) onN++;
+    const r = st.get(p.number) || {pts:0, sec:0}, on = onCourtAt(p.number, tm); if (on) onN++;
     return `<div class="pl ${on?'on':''} ${sel===p.number?'sel':''}" data-n="${p.number}">
       <span class="num">${p.number}</span><span class="nm">${esc(p.name)}</span>
       <span class="mini"><b>${r.pts}</b><i>pts</i></span><span class="mini"><b>${fmt(r.sec)}</b><i>min</i></span>
-      <button class="sub" data-sub="${p.number}">${on?'下場':'上場'}</button></div>`;
-  }).join('') : '<p class="muted">還沒有名單。在下方「編輯名單」貼上,每行一位,例如「7 Jason」。</p>';
+      <button class="sub" data-sub="${p.number}">${on ? t('offCourtWord') : t('onCourtWord')}</button></div>`;
+  }).join('') : `<p class="muted">${t('rosterEmpty')}</p>`;
   setHTML($('#roster'), html);
-  $('#onCount').textContent = S.roster.length ? '場上 ' + onN : '';
+  $('#onCount').textContent = S.roster.length ? t('onCourt') + ' ' + onN : '';
   renderCourt();
 }
 let subOnly = false;
 function renderLog() {
   const all = S.events.map((e, i) => ({e, i}));
-  const items = (subOnly ? all.filter(x => x.e.type === 'SUB_IN' || x.e.type === 'SUB_OUT') : all).reverse();
-  $('#logCount').textContent = items.length + ' 筆';
+  const items = (subOnly ? all.filter(x => isSub(x.e)) : all).reverse();
+  $('#logCount').textContent = items.length + ' ' + t('entries');
   $('#subOnly').style.borderColor = subOnly ? 'var(--wood)' : '';
   setHTML($('#log'), items.length ? items.map(({e, i}) => `<div class="ev" data-i="${i}">
       <span class="tm">${fmtLog(e.t)}</span><span>#${e.player} ${esc(nameOf(e.player))}</span>
-      <span class="${TYPES[e.type] ? TYPES[e.type].cls : ''}">${TYPES[e.type] ? TYPES[e.type].label : esc(e.type)}</span>
-      <button class="del" data-del="${i}" aria-label="刪除這筆">×</button></div>`).join('')
-    : '<p class="muted">沒有符合的事件。</p>');
+      <span class="${TYPES[e.type] ? TYPES[e.type].cls : 'neutral'}">${TYPES[e.type] ? TYPES[e.type].label : subLabel(e.type)}</span>
+      <button class="del" data-del="${i}" aria-label="${t('deleteThis')}">\u00d7</button></div>`).join('')
+    : `<p class="muted">${t('noMatch')}</p>`);
 }
 function renderBox() {
   const rows = computeStats().filter(r => S.roster.some(p => p.number === r.n) || r.pts || r.reb || r.ast || r.stl || r.to || r.a2 || r.a3 || r.af || r.sec);
   const tot = {pts:0,m2:0,a2:0,m3:0,a3:0,mf:0,af:0,reb:0,ast:0,stl:0,to:0};
   const line = r => `<td>${r.pts}</td><td>${r.m2}-${r.a2}</td><td>${r.m3}-${r.a3}</td><td>${r.mf}-${r.af}</td><td>${r.reb}</td><td>${r.ast}</td><td>${r.stl}</td><td>${r.to}</td>`;
   setHTML($('#boxBody'), rows.map(r => { for (const k in tot) tot[k] += r[k]; return `<tr><td class="l"><b>${r.n}</b>${esc(r.name)}</td><td class="min">${fmt(r.sec)}</td>${line(r)}</tr>`; }).join(''));
-  setHTML($('#boxFoot'), rows.length ? `<tr><td class="l">Team</td><td></td>${line(tot)}</tr>` : '');
-  $('#boxNote').textContent = S.endT == null ? '尚未標記比賽結束:場上球員的時間算到目前為止' : '';
+  setHTML($('#boxFoot'), rows.length ? `<tr><td class="l">${t('team')}</td><td></td>${line(tot)}</tr>` : '');
+  $('#boxNote').textContent = S.endT == null ? t('minutesNote') : '';
 }
 function renderStatus() {
   const sb = $('#stopBadge'), eb = $('#endBadge');
-  sb.hidden = S.stopStart == null; sb.textContent = S.stopStart == null ? '' : '時鐘停止中 · 從 ' + fmtPos(S.stopStart);
-  eb.hidden = S.endT == null; eb.textContent = S.endT == null ? '' : '比賽結束 ' + fmtPos(S.endT);
+  sb.hidden = S.stopStart == null; sb.textContent = S.stopStart == null ? '' : t('clockStoppedBadge', fmtPos(S.stopStart));
+  eb.hidden = S.endT == null; eb.textContent = S.endT == null ? '' : t('gameEndBadge', fmtPos(S.endT));
   $('#opp').value = S.game.opponent || ''; $('#date').value = S.game.date || '';
 }
 function renderCourt() {
@@ -451,28 +589,28 @@ function renderCourt() {
   if (!S.roster.length) { el.hidden = true; return; }
   const c = courtAt(curT()).size;
   el.hidden = false;
-  el.textContent = c === 5 ? '場上 5/5' : c < 5 ? '場上只有 ' + c + ' 人,需要 5 人' : '場上 ' + c + ' 人,超過 5 人';
+  el.textContent = c === 5 ? t('courtOk') : c < 5 ? t('courtLow', c) : t('courtHigh', c);
   el.className = 'court ' + (c === 5 ? 'ok' : 'bad');
 }
 function renderSegs() {
   const vs = S.game.videos, el = $('#segs');
   if (vs.length < 2 && !vs.some((x, i) => !vids[i])) { setHTML(el, ''); return; }
-  setHTML(el, vs.map((x, i) => `<button data-seg="${i}" class="${i === curSeg && vids[i] ? 'on' : ''} ${vids[i] ? '' : 'missing'}" title="${esc(x.name)}">第${i + 1}段<small>${x.duration ? fmt(x.duration) : ''}</small></button>`).join('')
-    + (S.events.length ? '' : '<button data-reorder>調整順序</button><button data-resetv>重設影片清單</button>'));
+  setHTML(el, vs.map((x, i) => `<button data-seg="${i}" class="${i === curSeg && vids[i] ? 'on' : ''} ${vids[i] ? '' : 'missing'}" title="${esc(x.name)}">${t('segLabel', i + 1)}<small>${x.duration ? fmt(x.duration) : ''}</small></button>`).join('')
+    + (S.events.length ? '' : `<button data-reorder>${t('reorder')}</button><button data-resetv>${t('resetVideos')}</button>`));
 }
 function renderAll() { renderRoster(); renderLog(); renderBox(); renderStatus(); renderSegs(); }
 
 /* ---------- dialogs ---------- */
 function ask(msg, ok) {
   return new Promise(res => {
-    const d = $('#askDlg'); $('#askMsg').textContent = msg; $('#askOk').textContent = ok || '確定';
+    const d = $('#askDlg'); $('#askMsg').textContent = msg; $('#askOk').textContent = ok || t('confirm');
     const done = val => { d.close(); res(val); };
     $('#askOk').onclick = () => done(true); $('#askNo').onclick = () => done(false);
     d.oncancel = () => res(false); d.showModal();
   });
 }
 function showFallback(name, data) {
-  $('#expMsg').textContent = '這個環境無法直接下載。複製下面內容,存成 ' + name;
+  $('#expMsg').textContent = t('fallbackMsg', name);
   $('#expTxt').value = data; $('#expDlg').showModal(); $('#expTxt').select();
 }
 function blobDownload(name, data) {
@@ -485,10 +623,10 @@ async function exportFile(name, data) {
   let dl = null;
   try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) {}
   if (!dl) {
-    if (!window.claude) { blobDownload(name, data); toast('已下載 ' + name, 'made'); return; }
+    if (!window.claude) { blobDownload(name, data); toast(t('downloadedFile', name), 'made'); return; }
     showFallback(name, data); return;
   }
-  try { await dl.save({ filename: name, data }); toast('已存 ' + name, 'made'); }
+  try { await dl.save({ filename: name, data }); toast(t('savedFile', name), 'made'); }
   catch (e) { if (!e || e.code !== 'declined') showFallback(name, data); }
 }
 const baseName = () => (S.game.date || today()) + '_vs_' + ((S.game.opponent || 'game').replace(/[\\/:*?"<>|\s]+/g, '-'));
@@ -504,8 +642,9 @@ function reportHtml() {
   const tot = {pts:0,m2:0,a2:0,m3:0,a3:0,mf:0,af:0,reb:0,ast:0,stl:0,to:0};
   const body = rows.map(r => { for (const k in tot) tot[k] += r[k];
     return `<tr><td class="l"><b>#${r.n}</b> ${esc(r.name)}</td><td class="m">${fmt(r.sec)}</td><td>${r.pts}</td><td>${r.m2}-${r.a2}</td><td>${r.m3}-${r.a3}</td><td>${r.mf}-${r.af}</td><td>${r.reb}</td><td>${r.ast}</td><td>${r.stl}</td><td>${r.to}</td></tr>`; }).join('');
-  const title = S.game.opponent ? 'vs ' + esc(S.game.opponent) : 'Game report';
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} ${esc(S.game.date)}</title>
+  const title = S.game.opponent ? t('reportVs', esc(S.game.opponent)) : t('reportTitleDefault');
+  const htmlLang = LANG === 'zh' ? 'zh-Hant' : 'en';
+  return `<!DOCTYPE html><html lang="${htmlLang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} ${esc(S.game.date)}</title>
 <style>body{font:15px/1.5 -apple-system,'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;color:#1c2530;max-width:820px;margin:24px auto;padding:0 16px}
 h1{margin:0;font-size:26px}p.s{margin:2px 0 18px;color:#5b6876}
 table{border-collapse:collapse;width:100%}th,td{padding:8px 10px;text-align:right;border-bottom:1px solid #d9dfe6;white-space:nowrap}
@@ -513,36 +652,36 @@ th{background:#f1f4f7;font-size:13px}th.l,td.l{text-align:left}td.m,th.m{font-we
 tfoot td{border-top:2px solid #1c2530;font-weight:700}.wrap{overflow-x:auto}.n{color:#5b6876;font-size:13px;margin-top:14px}
 @media print{body{margin:0}}</style></head><body>
 <h1>${title}</h1><p class="s">${esc(S.game.date)}</p>
-<div class="wrap"><table><thead><tr><th class="l">Player</th><th class="m">MIN</th><th>PTS</th><th>2PT</th><th>3PT</th><th>FT</th><th>REB</th><th>AST</th><th>STL</th><th>TO</th></tr></thead>
+<div class="wrap"><table><thead><tr><th class="l">${t('playerCol')}</th><th class="m">MIN</th><th>PTS</th><th>2PT</th><th>3PT</th><th>FT</th><th>REB</th><th>AST</th><th>STL</th><th>TO</th></tr></thead>
 <tbody>${body}</tbody>
-<tfoot><tr><td class="l">Team</td><td></td><td>${tot.pts}</td><td>${tot.m2}-${tot.a2}</td><td>${tot.m3}-${tot.a3}</td><td>${tot.mf}-${tot.af}</td><td>${tot.reb}</td><td>${tot.ast}</td><td>${tot.stl}</td><td>${tot.to}</td></tr></tfoot></table></div>
-<p class="n">MIN = time on court (timeouts and halftime excluded). 2PT / 3PT / FT shown as made-attempted. Stats tagged by the coach from game video.</p></body></html>`;
+<tfoot><tr><td class="l">${t('team')}</td><td></td><td>${tot.pts}</td><td>${tot.m2}-${tot.a2}</td><td>${tot.m3}-${tot.a3}</td><td>${tot.mf}-${tot.af}</td><td>${tot.reb}</td><td>${tot.ast}</td><td>${tot.stl}</td><td>${tot.to}</td></tr></tfoot></table></div>
+<p class="n">${t('reportNote')}</p></body></html>`;
 }
 
 /* ---------- wiring ---------- */
 function parseRoster(txt) {
   const out = [], seen = new Set();
   for (const line of txt.split(/\r?\n/)) {
-    const m = line.trim().match(/^#?(\d{1,2})[\s,.\-:、]*(.*)$/); if (!m) continue;
+    const m = line.trim().match(/^#?(\d{1,2})[\s,.\-:\u3001]*(.*)$/); if (!m) continue;
     const n = parseInt(m[1], 10); if (seen.has(n)) continue; seen.add(n);
     out.push({ number: n, name: m[2].trim() });
   }
   return out;
 }
 function loadVideoUI() {
-  if (pipWin) { $('#vempty').classList.remove('hide'); $('#vemptyMsg').textContent = '播放器在獨立視窗裡。按「收回播放器」放回來。'; return; }
+  if (pipWin) { $('#vempty').classList.remove('hide'); $('#vemptyMsg').textContent = t('detachedPlaceholder'); return; }
   const has = !!v.getAttribute('src'), names = S.game.videos.map(x => x.name);
   $('#vempty').classList.toggle('hide', has);
-  $('#vemptyMsg').textContent = names.length && !has ? '資料還在。請重新選擇這些影片(可一次多選):' + names.join('、') : '選擇比賽影片開始標記(這場有幾段,就一次全選)';
+  $('#vemptyMsg').textContent = names.length && !has ? t('dataStillHere') + names.join('\u3001') : t('selectVideoPrompt');
 }
 $('#pickVideo').onclick = () => $('#vfile').click();
 function readDuration(f) {
   return new Promise(res => {
-    const t = document.createElement('video'), u = URL.createObjectURL(f);
-    t.preload = 'metadata';
-    t.onloadedmetadata = () => { res(t.duration); URL.revokeObjectURL(u); };
-    t.onerror = () => { res(NaN); URL.revokeObjectURL(u); };
-    t.src = u;
+    const tv = document.createElement('video'), u = URL.createObjectURL(f);
+    tv.preload = 'metadata';
+    tv.onloadedmetadata = () => { res(tv.duration); URL.revokeObjectURL(u); };
+    tv.onerror = () => { res(NaN); URL.revokeObjectURL(u); };
+    tv.src = u;
   });
 }
 const natCmp = (a, b) => a.f.name.localeCompare(b.f.name, undefined, { numeric: true });
@@ -550,11 +689,11 @@ const byTime = (a, b) => (a.f.lastModified - b.f.lastModified) || natCmp(a, b);
 function chooseOrder(items, keep) {
   return new Promise(res => {
     const d = $('#ordDlg'); let arr = keep ? items.slice() : items.slice().sort(byTime), done = false;
-    const stamp = f => new Date(f.lastModified).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const stampOf = f => new Date(f.lastModified).toLocaleString(LANG === 'zh' ? 'zh-TW' : 'en-US', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const draw = () => {
       $('#ordList').innerHTML = arr.map((it, i) => `<div class="ord"><span class="num">${i + 1}</span><span class="nm" title="${esc(it.f.name)}">${esc(it.f.name)}</span>
-        <span class="muted">${stamp(it.f)} · ${fmt(it.d)}</span>
-        <button data-up="${i}" ${i === 0 ? 'disabled' : ''} aria-label="上移">↑</button><button data-down="${i}" ${i === arr.length - 1 ? 'disabled' : ''} aria-label="下移">↓</button></div>`).join('');
+        <span class="muted">${stampOf(it.f)} \u00b7 ${fmt(it.d)}</span>
+        <button data-up="${i}" ${i === 0 ? 'disabled' : ''} aria-label="${t('moveUp')}">\u2191</button><button data-down="${i}" ${i === arr.length - 1 ? 'disabled' : ''} aria-label="${t('moveDown')}">\u2193</button></div>`).join('');
     };
     const finish = val => { if (done) return; done = true; d.close(); res(val); };
     $('#ordList').onclick = e => {
@@ -573,11 +712,11 @@ function chooseOrder(items, keep) {
 }
 $('#vfile').onchange = async e => {
   const files = [...e.target.files]; e.target.value = ''; if (!files.length) return;
-  toast('讀取 ' + files.length + ' 段影片…', 'neutral');
+  toast(t('loadingClips', files.length), 'neutral');
   const known = [], fresh = [];
   for (const f of files) {
     const d = await readDuration(f);
-    if (!isFinite(d)) { toast('無法讀取 ' + f.name, 'warn'); continue; }
+    if (!isFinite(d)) { toast(t('cantRead', f.name), 'warn'); continue; }
     (S.game.videos.some(x => x.name === f.name) ? known : fresh).push({ f, d });
   }
   if (!S.events.length) { clearRuntime(); S.game.videos = []; fresh.push(...known); known.length = 0; }
@@ -590,24 +729,24 @@ $('#vfile').onchange = async e => {
   let ordered = [];
   if (fresh.length) {
     ordered = await chooseOrder(fresh);
-    if (!ordered) { ordered = []; toast('已取消,沒有加入新影片', 'warn'); }
+    if (!ordered) { ordered = []; toast(t('cancelledNoAdd'), 'warn'); }
   }
   for (const it of ordered) { const i = S.game.videos.length; S.game.videos.push({ name: it.f.name, duration: it.d }); attach(it, i); }
   save();
   if (!v.getAttribute('src')) { const first = S.game.videos.findIndex((x, i) => vids[i]); if (first >= 0) loadSeg(first, 0, false); }
   renderAll(); loadVideoUI();
-  if (ordered.length || known.length) toast('這場共 ' + S.game.videos.length + ' 段影片', 'made');
+  if (ordered.length || known.length) toast(t('totalClips', S.game.videos.length), 'made');
 };
 async function reorderVideos() {
-  if (S.events.length) { toast('已經有標記的事件,順序不能再改', 'warn'); return; }
+  if (S.events.length) { toast(t('orderLocked'), 'warn'); return; }
   const items = S.game.videos.map((x, i) => vids[i] ? { f: vids[i].file, d: x.duration } : null);
-  if (!items.length || items.some(x => !x)) { toast('請先把所有影片都載入', 'warn'); return; }
+  if (!items.length || items.some(x => !x)) { toast(t('pickAllFirst'), 'warn'); return; }
   const ord = await chooseOrder(items, true); if (!ord) return;
   const keep = vids.slice();
   S.game.videos = ord.map(it => ({ name: it.f.name, duration: it.d }));
   vids.length = 0; ord.forEach((it, i) => { vids[i] = keep.find(o => o && o.file === it.f); });
   curSeg = 0; v.removeAttribute('src'); save();
-  loadSeg(0, 0, false); renderAll(); loadVideoUI(); toast('順序已更新', 'made');
+  loadSeg(0, 0, false); renderAll(); loadVideoUI(); toast(t('orderUpdated'), 'made');
 }
 $('#segs').onclick = e => {
   if (e.target.closest('[data-reorder]')) { reorderVideos(); return; }
@@ -636,13 +775,13 @@ $('#roster').addEventListener('pointerdown', e => {
 $('#subOnly').onclick = e => { subOnly = !subOnly; e.target.blur(); renderLog(); };
 $('#log').onclick = e => {
   const d = e.target.closest('[data-del]');
-  if (d) { S.events.splice(+d.dataset.del, 1); save(); renderAll(); toast('已刪除', 'warn'); return; }
+  if (d) { S.events.splice(+d.dataset.del, 1); save(); renderAll(); toast(t('deleted'), 'warn'); return; }
   const row = e.target.closest('[data-i]'); if (row) seek(S.events[+row.dataset.i].t - 3);
 };
 $('#applyRoster').onclick = () => {
   const r = parseRoster($('#rosterTxt').value);
-  if (!r.length) { toast('沒讀到名單。格式:每行「背號 名字」', 'warn'); return; }
-  S.roster = r.sort((a,b) => a.number - b.number); save(); renderAll(); toast('已套用 ' + r.length + ' 位球員', 'made');
+  if (!r.length) { toast(t('emptyRosterWarn'), 'warn'); return; }
+  S.roster = r.sort((a,b) => a.number - b.number); save(); renderAll(); toast(t('rosterApplied', r.length), 'made');
   $('#rosterDetails').open = false;
 };
 $('#csvBtn').onclick = () => exportFile(baseName() + '_boxscore.csv', csvText());
@@ -656,17 +795,17 @@ $('#jfile').onchange = e => {
     try {
       const d = JSON.parse(rd.result);
       if (!Array.isArray(d.events) || !Array.isArray(d.roster)) throw new Error('bad');
-      if (S.events.length && !(await ask('目前有 ' + S.events.length + ' 筆事件,載入會取代它們。要繼續嗎?', '取代'))) return;
+      if (S.events.length && !(await ask(t('confirmClearEvents', S.events.length), t('replace')))) return;
       S = Object.assign(blank(), d); delete S.app; delete S.version; normalize(); clearRuntime(); save(); syncRosterTxt(); renderAll(); loadVideoUI();
-      toast('已載入。請重新選擇影片(全部幾段一次選)。', 'made');
-    } catch (err) { toast('這不是有效的比賽 JSON', 'warn'); }
+      toast(t('loaded'), 'made');
+    } catch (err) { toast(t('badJson'), 'warn'); }
   };
   rd.readAsText(f);
 };
 $('#newBtn').onclick = async () => {
-  if (!(await ask('清除目前比賽的所有事件,保留球員名單。建議先存 JSON。要繼續嗎?', '清除'))) return;
+  if (!(await ask(t('confirmNewGame'), t('clear')))) return;
   resetVideos(); S.events = []; S.clock_stopped = []; S.stopStart = null; S.endT = null; S.game = { opponent:'', date:today(), videos:[] };
-  save(); renderAll(); loadVideoUI(); toast('新比賽,名單已保留', 'neutral');
+  save(); renderAll(); loadVideoUI(); toast(t('newGameDone'), 'neutral');
 };
 $('#expClose').onclick = () => $('#expDlg').close();
 $('#expCopy').onclick = () => { $('#expTxt').select(); try { document.execCommand('copy'); } catch (e) {} };
@@ -699,16 +838,16 @@ v.addEventListener('pointerup', () => setTimeout(() => { if (v.ownerDocument.act
 
 /* ---------- detach player / theater ---------- */
 const vwrap = document.querySelector('.vwrap');
-function moveVideo(toDoc, parent, before) {
-  const t = v.currentTime, was = !v.paused, rate = v.playbackRate;
+function moveVideo(parent, before) {
+  const t0 = v.currentTime, was = !v.paused, rate = v.playbackRate;
   parent.insertBefore(v, before || null);
-  if (Math.abs(v.currentTime - t) > 1) v.currentTime = t;
+  if (Math.abs(v.currentTime - t0) > 1) v.currentTime = t0;
   v.playbackRate = rate;
   if (was && v.paused) v.play().catch(() => {});
 }
 async function popOut() {
   if (pipWin) { pipWin.close(); return; }
-  if (!v.getAttribute('src')) { toast('先載入影片', 'warn'); return; }
+  if (!v.getAttribute('src')) { toast(t('loadFirst'), 'warn'); return; }
   if ('documentPictureInPicture' in window) {
     try {
       const w = Math.min(1280, Math.round(screen.availWidth * 0.9)), h = Math.round(w * 9 / 16);
@@ -717,34 +856,34 @@ async function popOut() {
       const st = win.document.createElement('style');
       st.textContent = 'html,body{margin:0;height:100%;background:#000;overflow:hidden}video{width:100%;height:100%;display:block;background:#000;object-fit:contain}';
       win.document.head.append(st);
-      moveVideo(win.document, win.document.body);
+      moveVideo(win.document.body);
       win.document.addEventListener('keydown', onKey, true);
       win.document.addEventListener('keyup', onKeyUp, true);
       win.addEventListener('pagehide', () => {
-        pipWin = null; moveVideo(document, vwrap, $('#vempty'));
-        $('#popBtn').textContent = '分離播放器'; loadVideoUI();
+        pipWin = null; moveVideo(vwrap, $('#vempty'));
+        $('#popBtn').textContent = t('detach'); loadVideoUI();
       });
-      $('#popBtn').textContent = '收回播放器'; loadVideoUI();
-      toast('已分離。把視窗拖到第二個螢幕,拉角落放大', 'made');
+      $('#popBtn').textContent = t('retract'); loadVideoUI();
+      toast(t('detachedHint'), 'made');
       return;
     } catch (e) { pipWin = null; }
   }
   if (document.pictureInPictureEnabled && v.requestPictureInPicture) {
-    try { await v.requestPictureInPicture(); toast('已開啟子母畫面(在小視窗裡快捷鍵無效,標記請回主視窗)', 'neutral'); return; } catch (e) {}
+    try { await v.requestPictureInPicture(); toast(t('pipHint'), 'neutral'); return; } catch (e) {}
   }
-  toast('這個瀏覽器不能分離播放器,可以改用「放大影片」', 'warn');
+  toast(t('noDetach'), 'warn');
 }
 $('#popBtn').onclick = e => { e.target.blur(); popOut(); };
 $('#theaterBtn').onclick = e => {
   const on = document.body.classList.toggle('theater');
-  e.target.textContent = on ? '縮小影片' : '放大影片'; e.target.blur();
+  e.target.textContent = on ? t('shrink') : t('enlarge'); e.target.blur();
 };
 
 function syncRosterTxt() { $('#rosterTxt').value = S.roster.map(p => p.number + ' ' + p.name).join('\n'); }
 v.addEventListener('seeked', () => { renderRoster(); renderBox(); });
 setInterval(() => { if (!v.paused) { renderRoster(); renderBox(); } }, 3000);
 
-renderKeys(); syncRosterTxt(); renderAll(); loadVideoUI();
+syncRosterTxt(); applyLang();
 if (!S.roster.length) $('#rosterDetails').open = true;
 })();
 </script>
