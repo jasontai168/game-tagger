@@ -76,6 +76,8 @@ input,textarea{background:var(--deep);border:1px solid var(--line);border-radius
 .court.ok{border:1px solid var(--made);color:var(--made)}
 .court.bad{background:var(--miss);color:#2a0d08}
 .badge.end{background:var(--info);color:#0b2136}
+.delay{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13px}
+.delay select{background:var(--deep);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit;color:var(--text)}
 .speed button{padding:3px 9px}
 .speed button.on{background:var(--wood);border-color:var(--wood);color:#1d1608}
 
@@ -179,6 +181,7 @@ dialog .segpick button.on{background:var(--wood);border-color:var(--wood);color:
           <span class="court ok" id="courtBadge" hidden></span>
           <span class="badge" id="stopBadge" hidden></span>
           <span class="badge end" id="endBadge" hidden></span>
+          <label class="delay"><span id="t_delayLabel"></span><select id="delayIn"></select></label>
           <span class="speed" id="speed"></span>
         </div>
       </div>
@@ -194,7 +197,7 @@ dialog .segpick button.on{background:var(--wood);border-color:var(--wood);color:
         <details id="rosterDetails">
           <summary id="t_editRoster"></summary>
           <textarea id="rosterTxt"></textarea>
-          <button id="applyRoster" class="primary"></button>
+          <button id="applyRoster" class="primary"></button> <button id="resetRoster"></button>
         </details>
       </section>
       <section class="card">
@@ -238,6 +241,7 @@ dialog .segpick button.on{background:var(--wood);border-color:var(--wood);color:
   <p class="muted" style="margin:0 0 10px" id="t_chapHint"></p>
   <div class="segpick" id="chapSegs"></div>
   <div class="chapbox" id="chapBox"></div>
+  <p class="muted" id="chapNote" style="margin:8px 0 0"></p>
   <div class="row"><button id="chapCopy"></button><button id="chapDone" class="primary"></button></div>
 </dialog>
 
@@ -283,7 +287,7 @@ zh: {
   clockStoppedBadge:'時鐘停止中 · 從 {0}', gameEndBadge:'比賽結束 {0}',
   notInRosterShort:'不在名單', unnamed:'(未命名)',
   onCourtWord:'場上', offCourtWord:'場下',
-  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員',
+  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員', resetRoster:'還原預設名單', confirmResetRoster:'把球員名單換回預設名單。已標記的事件不受影響。要繼續嗎?', rosterReset:'已還原預設名單', delayLabel:'標記提前(秒)',
   minutesNote:'尚未標記比賽結束:場上球員的時間算到目前為止',
   loadFirst:'先載入影片', detachedHint:'已分離。把視窗拖到第二個螢幕,拉角落放大',
   pipHint:'已開啟子母畫面(在小視窗裡快捷鍵無效,標記請回主視窗)', noDetach:'這個瀏覽器不能分離播放器,可以改用「放大影片」',
@@ -305,7 +309,7 @@ zh: {
   ytApiFail:'YouTube 播放器載入失敗,請檢查網路連線',
   ytPlaybackErr:'這段影片播放失敗({0})。如果是「embedding disabled」,代表影片擁有者關閉了外部網站播放權限,需要去 YouTube Studio 該支影片的進階設定打開「允許嵌入」',
   chapBtnLabel:'YouTube 章節', chapTitle:'匯出 YouTube 章節', chapHint:'每段影片各自的時間軸文字,貼到該支影片在 YouTube 的描述欄位裡就會變成可點擊章節。時間間隔太近的事件會自動合併成一行。',
-  chapNoEvents:'這段還沒有事件', chapCopied:'已複製', chapStart:'開始',
+  chapNoEvents:'這段還沒有事件', chapCopied:'已複製', chapMin3:'注意:這段只有 {0} 個時間點。YouTube 需要至少 3 個時間點才會產生章節,貼上後可能不會生效。', chapStart:'開始',
   done:'完成', inWord:'in', outWord:'out'
 },
 en: {
@@ -341,7 +345,7 @@ en: {
   clockStoppedBadge:'Clock stopped \u00b7 from {0}', gameEndBadge:'Game ended {0}',
   notInRosterShort:'not on roster', unnamed:'(unnamed)',
   onCourtWord:'on court', offCourtWord:'off court',
-  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players',
+  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players', resetRoster:'Restore default roster', confirmResetRoster:'Replace the current roster with the default roster. Tagged events are not affected. Continue?', rosterReset:'Default roster restored', delayLabel:'Backdate (s)',
   minutesNote:'Game end not marked yet \u2014 on-court time counts up to now',
   loadFirst:'Load a video first', detachedHint:'Detached. Drag the window to a second screen and enlarge it',
   pipHint:'Picture-in-picture opened (shortcuts don\u2019t work in the small window \u2014 tag from the main window)', noDetach:'This browser can\u2019t detach the player \u2014 try "Enlarge video" instead',
@@ -363,7 +367,7 @@ en: {
   ytApiFail:'YouTube player failed to load \u2014 check your connection',
   ytPlaybackErr:'This clip failed to play ({0}). If it says "embedding disabled", the video owner needs to turn on "Allow embedding" in that video\u2019s advanced settings on YouTube Studio',
   chapBtnLabel:'YouTube chapters', chapTitle:'Export YouTube chapters', chapHint:'Per-clip timestamp text \u2014 paste it into that video\u2019s YouTube description to get clickable chapters. Events too close together are merged into one line.',
-  chapNoEvents:'No events in this clip yet', chapCopied:'Copied', chapStart:'Start',
+  chapNoEvents:'No events in this clip yet', chapCopied:'Copied', chapMin3:'Note: this clip only has {0} timestamp(s). YouTube needs at least 3 to create chapters, so this may not take effect.', chapStart:'Start',
   done:'Done', inWord:'in', outWord:'out'
 }
 };
@@ -386,7 +390,7 @@ function applyLang() {
   $('#theaterBtn').textContent = document.body.classList.contains('theater') ? t('shrink') : t('enlarge');
   $('#popBtn').textContent = pipWin ? t('retract') : t('detach');
   $('#rosterTxt').placeholder = t('rosterPlaceholder');
-  $('#applyRoster').textContent = t('applyRoster');
+  $('#applyRoster').textContent = t('applyRoster'); $('#resetRoster').textContent = t('resetRoster');
   $('#subOnly').textContent = t('subsOnly');
   $('#askOk').textContent = t('confirm'); $('#askNo').textContent = t('cancel');
   $('#ordTime').textContent = t('sortByTime'); $('#ordName').textContent = t('sortByName');
@@ -424,6 +428,15 @@ function normalize() {
 }
 normalize();
 
+const DEFAULT_ROSTER = [
+  { number: 3, name: 'Tate' }, { number: 8, name: 'William' }, { number: 11, name: 'Bo' },
+  { number: 18, name: 'Maxen' }, { number: 21, name: 'Owen' }, { number: 23, name: 'Bennett' },
+  { number: 25, name: 'Rece' }, { number: 32, name: 'Harrison' }, { number: 33, name: 'Logan' },
+  { number: 35, name: 'Armani' }, { number: 43, name: 'Finn' }
+];
+const applyDefaultRoster = () => { S.roster = DEFAULT_ROSTER.map(p => ({ ...p })); };
+if (!S.roster.length) { applyDefaultRoster(); save(); }
+
 const TYPES = {
   '2PT_made':{k:'A',label:'2PT made',cls:'made'}, '2PT_miss':{k:'S',label:'2PT miss',cls:'miss'},
   '3PT_made':{k:'D',label:'3PT made',cls:'made'}, '3PT_miss':{k:'F',label:'3PT miss',cls:'miss'},
@@ -437,6 +450,7 @@ for (const [ty, o] of Object.entries(TYPES)) if (o.k) KEYMAP[o.k] = ty;
 
 const v = $('#v');
 const vids = []; let curSeg = 0; let pipWin = null;
+let curRate = 1, pausePos = null;
 let yt = null, ytReady = false, ytLoading = false, ytPendingSeek = null, ytLastState = -1;
 const isYT = () => S.game.source === 'youtube';
 const dur = i => (S.game.videos[i] && S.game.videos[i].duration) || 0;
@@ -452,6 +466,16 @@ const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec/6
 const fmtPos = g => { if (S.game.videos.length > 1) { const p = locate(g); return t('segLabel', p.i + 1) + ' ' + fmt(p.t); } return fmt(g); };
 const fmtLog = g => { if (S.game.videos.length > 1) { const p = locate(g); return (p.i + 1) + '\u00b7' + fmt(p.t); } return fmt(g); };
 const stamp = () => Math.floor(curT() * 100) / 100;
+let tagDelay = (() => { try { const x = parseInt(localStorage.getItem('hoops-tagger-delay'), 10); return isFinite(x) && x >= 0 && x <= 10 ? x : 5; } catch (e) { return 5; } })();
+const isPlaying = () => isYT() ? !!(yt && ytReady && yt.getPlayerState() === YT.PlayerState.PLAYING) : !v.paused;
+const playRate = () => isYT() ? ((yt && ytReady && yt.getPlaybackRate()) || curRate) : (v.playbackRate || 1);
+// Stat events tagged while playing (or right after pausing, without moving the playhead) are back-dated by the reaction delay (scaled by playback speed), clamped to the current clip
+const atPausePoint = () => pausePos != null && Math.abs(localTime() - pausePos) < 1;
+function statStamp() {
+  if (!tagDelay || !(isPlaying() || atPausePoint())) return stamp();
+  const back = tagDelay * playRate();
+  return Math.floor((segOff(curSeg) + Math.max(0, localTime() - back)) * 100) / 100;
+}
 const nameOf = n => (S.roster.find(p => p.number === n) || {}).name || '';
 const setHTML = (el, html) => { if (el._h !== html) { el.innerHTML = html; el._h = html; } };
 
@@ -550,7 +574,7 @@ function tag(type, forced) {
   } else if (!onCourtAt(n, tm)) {
     toast(t('offCourtBlock', who), 'warn'); setBuf(''); return;
   }
-  S.events.push({ t: tm, player: n, type });
+  S.events.push({ t: isSub({ type }) ? tm : statStamp(), player: n, type });
   save(); setBuf('');
   renderAll();
   const c = courtAt(tm).size;
@@ -579,7 +603,7 @@ function loadSegLocal(i, tm, play) {
   if (!ent) { toast(t('reselectClip', (S.game.videos[i] || {}).name || ''), 'warn'); return false; }
   const go = () => { v.currentTime = Math.max(0, tm || 0); if (play) v.play().catch(() => {}); renderAll(); };
   if (curSeg === i && v.getAttribute('src') === ent.url) { go(); return true; }
-  curSeg = i; v.src = ent.url;
+  curSeg = i; pausePos = null; v.src = ent.url;
   v.addEventListener('loadedmetadata', go, { once: true });
   renderSegs(); loadVideoUI(); return true;
 }
@@ -592,7 +616,7 @@ function loadSegYT(i, tm, play) {
       .catch(() => { toast(t('ytApiFail'), 'warn'); ytPendingSeek = null; });
     return true;
   }
-  curSeg = i;
+  curSeg = i; pausePos = null;
   const opts = { videoId: vid.videoId, startSeconds: Math.max(0, tm || 0) };
   if (play) yt.loadVideoById(opts); else yt.cueVideoById(opts);
   renderSegs(); loadVideoUI(); return true;
@@ -641,8 +665,10 @@ function createYT() {
           if (!settled) { settled = true; const err = new Error('yt error'); err.code = 'video'; reject(err); }
         },
         onStateChange: e => {
-          ytLastState = e.data;
+          const prevState = ytLastState; ytLastState = e.data;
+          if (e.data === YT.PlayerState.PAUSED && prevState === YT.PlayerState.PLAYING) pausePos = yt.getCurrentTime();
           if (e.data === YT.PlayerState.ENDED) { const n = curSeg + 1; if (n < S.game.videos.length) loadSeg(n, 0, true); }
+          if (e.data === YT.PlayerState.PLAYING && yt.getPlaybackRate() !== curRate) yt.setPlaybackRate(curRate);
           if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.PAUSED) renderAll();
         }
       }
@@ -958,13 +984,18 @@ $('#segs').onclick = e => {
   if (b) { b.blur(); loadSeg(+b.dataset.seg, 0, false); return; }
   if (e.target.closest('[data-resetv]')) resetVideos();
 };
+v.addEventListener('pause', () => { pausePos = v.currentTime; });
 v.addEventListener('ended', () => { const n = curSeg + 1; if (n < S.game.videos.length && vids[n]) loadSeg(n, 0, true); });
 $('#opp').oninput = e => { S.game.opponent = e.target.value; save(); };
 $('#date').oninput = e => { S.game.date = e.target.value; save(); };
 
+const dsel = $('#delayIn');
+dsel.innerHTML = Array.from({ length: 11 }, (_, i) => `<option value="${i}">${i}</option>`).join('');
+dsel.value = String(tagDelay);
+dsel.addEventListener('change', () => { tagDelay = parseInt(dsel.value, 10) || 0; try { localStorage.setItem('hoops-tagger-delay', String(tagDelay)); } catch (e) {} dsel.blur(); });
 const sp = $('#speed');
 sp.innerHTML = [0.5, 1, 1.5, 2].map(r => `<button data-r="${r}" class="${r===1?'on':''}">${r}x</button>`).join(' ');
-sp.onclick = e => { const b = e.target.closest('[data-r]'); if (!b) return; v.playbackRate = v.defaultPlaybackRate = +b.dataset.r; sp.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); b.blur(); };
+sp.onclick = e => { const b = e.target.closest('[data-r]'); if (!b) return; curRate = +b.dataset.r; v.playbackRate = v.defaultPlaybackRate = curRate; if (yt && ytReady) yt.setPlaybackRate(curRate); sp.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); b.blur(); };
 
 $('#keys').onclick = e => {
   const b = e.target.closest('[data-act]'); if (!b) return; b.blur();
@@ -988,6 +1019,10 @@ $('#applyRoster').onclick = () => {
   S.roster = r.sort((a,b) => a.number - b.number); save(); renderAll(); toast(t('rosterApplied', r.length), 'made');
   $('#rosterDetails').open = false;
 };
+$('#resetRoster').onclick = async () => {
+  if (!(await ask(t('confirmResetRoster'), t('confirm')))) return;
+  applyDefaultRoster(); save(); syncRosterTxt(); renderAll(); toast(t('rosterReset'), 'made');
+};
 $('#csvBtn').onclick = () => exportFile(baseName() + '_boxscore.csv', csvText());
 $('#rptBtn').onclick = () => exportFile(baseName() + '_report.html', reportHtml());
 $('#jsonBtn').onclick = () => exportFile(baseName() + '_raw.json', JSON.stringify({ app:'game-tagger', version:1, ...S }, null, 2));
@@ -1000,7 +1035,7 @@ $('#jfile').onchange = e => {
       const d = JSON.parse(rd.result);
       if (!Array.isArray(d.events) || !Array.isArray(d.roster)) throw new Error('bad');
       if (S.events.length && !(await ask(t('confirmClearEvents', S.events.length), t('replace')))) return;
-      S = Object.assign(blank(), d); delete S.app; delete S.version; normalize(); clearRuntime(); save(); syncRosterTxt(); renderAll(); loadVideoUI();
+      S = Object.assign(blank(), d); delete S.app; delete S.version; normalize(); if (!S.roster.length) applyDefaultRoster(); clearRuntime(); save(); syncRosterTxt(); renderAll(); loadVideoUI();
       toast(t('loaded'), 'made');
     } catch (err) { toast(t('badJson'), 'warn'); }
   };
@@ -1085,30 +1120,38 @@ $('#theaterBtn').onclick = e => {
 
 /* ---------- YouTube chapter export ---------- */
 const YT_MIN_GAP = 10;
+const fmtYT = sec => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), r = sec % 60; return h ? h + ':' + String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0') : m + ':' + String(r).padStart(2, '0'); };
 function chapterLine(e) {
   const label = TYPES[e.type] ? TYPES[e.type].label : (e.type === 'SUB_IN' ? t('inWord') : t('outWord'));
   return '#' + e.player + ' ' + nameOf(e.player) + ' ' + label;
 }
 function buildChapters(segIndex) {
-  const n = S.game.videos.length, segStart = segOff(segIndex), segEnd = segIndex < n - 1 ? segStart + dur(segIndex) : Infinity;
+  const n = S.game.videos.length, segStart = segOff(segIndex), segLen = dur(segIndex);
+  const segEnd = segIndex < n - 1 ? segStart + segLen : Infinity;
   const evs = S.events.filter(e => e.t >= segStart && e.t < segEnd).sort((a, b) => a.t - b.t);
   if (!evs.length) return null;
   const lines = [];
   for (const e of evs) {
-    const localT = Math.max(0, e.t - segStart), line = chapterLine(e);
+    const localT = Math.max(0, Math.floor(e.t - segStart)), line = chapterLine(e);
     const last = lines[lines.length - 1];
     if (last && localT - last.t < YT_MIN_GAP) last.items.push(line);
     else lines.push({ t: localT, items: [line] });
   }
-  if (lines.length && lines[0].t > 0) lines.unshift({ t: 0, items: [t('chapStart')] });
-  else if (lines.length) lines[0].items.unshift(t('chapStart'));
-  return lines.map(l => fmt(l.t) + ' ' + l.items.join(', ')).join('\n');
+  // YouTube rules: first chapter at 0:00, every chapter at least 10s long
+  if (lines[0].t < YT_MIN_GAP) { lines[0].t = 0; lines[0].items.unshift(t('chapStart')); }
+  else lines.unshift({ t: 0, items: [t('chapStart')] });
+  while (lines.length > 1 && segLen && segLen - lines[lines.length - 1].t < YT_MIN_GAP) {
+    const last = lines.pop(); lines[lines.length - 1].items.push(...last.items);
+  }
+  return { text: lines.map(l => fmtYT(l.t) + ' ' + l.items.join(', ')).join('\n'), count: lines.length };
 }
 function renderChapDlg() {
   const n = S.game.videos.length;
   setHTML($('#chapSegs'), n > 1 ? S.game.videos.map((x, i) => `<button data-cseg="${i}" class="${i === chapSel ? 'on' : ''}">${t('segLabel', i + 1)}</button>`).join('') : '');
-  const text = buildChapters(chapSel);
-  $('#chapBox').textContent = text || t('chapNoEvents');
+  const r = buildChapters(chapSel);
+  $('#chapBox').textContent = r ? r.text : t('chapNoEvents');
+  $('#chapBox').dataset.empty = r ? '' : '1';
+  $('#chapNote').textContent = r && r.count < 3 ? t('chapMin3', r.count) : '';
 }
 let chapSel = 0;
 $('#chapBtn').onclick = () => {
@@ -1117,11 +1160,17 @@ $('#chapBtn').onclick = () => {
   renderChapDlg(); $('#chapDlg').showModal();
 };
 $('#chapSegs').onclick = e => { const b = e.target.closest('[data-cseg]'); if (!b) return; chapSel = +b.dataset.cseg; renderChapDlg(); };
-$('#chapCopy').onclick = () => {
-  const r = document.createRange(); r.selectNodeContents($('#chapBox'));
-  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
-  try { document.execCommand('copy'); toast(t('chapCopied'), 'made'); } catch (e) {}
-  sel.removeAllRanges();
+$('#chapCopy').onclick = async () => {
+  const box = $('#chapBox'); if (box.dataset.empty) return;
+  let ok = false;
+  try { await navigator.clipboard.writeText(box.textContent); ok = true; } catch (e) {}
+  if (!ok) {
+    const r = document.createRange(); r.selectNodeContents(box);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    sel.removeAllRanges();
+  }
+  if (ok) { const b = $('#chapCopy'); b.textContent = t('chapCopied'); setTimeout(() => { b.textContent = t('copy'); }, 1500); }
 };
 $('#chapDone').onclick = () => $('#chapDlg').close();
 
