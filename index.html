@@ -287,7 +287,7 @@ zh: {
   clockStoppedBadge:'時鐘停止中 · 從 {0}', gameEndBadge:'比賽結束 {0}',
   notInRosterShort:'不在名單', unnamed:'(未命名)',
   onCourtWord:'場上', offCourtWord:'場下',
-  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員', resetRoster:'還原預設名單', confirmResetRoster:'把球員名單換回預設名單。已標記的事件不受影響。要繼續嗎?', rosterReset:'已還原預設名單', delayLabel:'標記提前(秒)',
+  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員', resetRoster:'還原預設名單', confirmResetRoster:'把球員名單換回預設名單。已標記的事件不受影響。要繼續嗎?', rosterReset:'已還原預設名單', confirmNewPlaylist:'載入新的 Playlist 會清除目前的 {0} 筆事件紀錄、時鐘停止與比賽結束標記,YouTube 章節也會一起清空。建議先存 JSON。要繼續嗎?', delayLabel:'標記提前(秒)',
   minutesNote:'尚未標記比賽結束:場上球員的時間算到目前為止',
   loadFirst:'先載入影片', detachedHint:'已分離。把視窗拖到第二個螢幕,拉角落放大',
   pipHint:'已開啟子母畫面(在小視窗裡快捷鍵無效,標記請回主視窗)', noDetach:'這個瀏覽器不能分離播放器,可以改用「放大影片」',
@@ -345,7 +345,7 @@ en: {
   clockStoppedBadge:'Clock stopped \u00b7 from {0}', gameEndBadge:'Game ended {0}',
   notInRosterShort:'not on roster', unnamed:'(unnamed)',
   onCourtWord:'on court', offCourtWord:'off court',
-  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players', resetRoster:'Restore default roster', confirmResetRoster:'Replace the current roster with the default roster. Tagged events are not affected. Continue?', rosterReset:'Default roster restored', delayLabel:'Backdate (s)',
+  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players', resetRoster:'Restore default roster', confirmResetRoster:'Replace the current roster with the default roster. Tagged events are not affected. Continue?', rosterReset:'Default roster restored', confirmNewPlaylist:'Loading a new playlist clears the current {0} events, clock-stop and game-end markers, and the YouTube chapters with them. Save JSON first if you want a backup. Continue?', delayLabel:'Backdate (s)',
   minutesNote:'Game end not marked yet \u2014 on-court time counts up to now',
   loadFirst:'Load a video first', detachedHint:'Detached. Drag the window to a second screen and enlarge it',
   pipHint:'Picture-in-picture opened (shortcuts don\u2019t work in the small window \u2014 tag from the main window)', noDetach:'This browser can\u2019t detach the player \u2014 try "Enlarge video" instead',
@@ -684,6 +684,11 @@ function ytPlaylistIdFrom(raw) {
 async function loadPlaylist(rawId) {
   const pid = ytPlaylistIdFrom(rawId);
   if (!pid) { toast(t('plBadId'), 'warn'); return; }
+  // A different playlist means a different game: old events/chapters no longer match the video, so confirm before clearing.
+  // Re-loading the same playlist (e.g. after a page refresh) keeps everything.
+  const hasData = S.events.length || S.clock_stopped.length || S.stopStart != null || S.endT != null;
+  const needClear = !!hasData && S.game.playlistId !== pid;
+  if (needClear && !(await ask(t('confirmNewPlaylist', S.events.length), t('clear')))) return;
   toast(t('plLoading'), 'neutral');
   try {
     await ensureYT();
@@ -701,6 +706,7 @@ async function loadPlaylist(rawId) {
       }, 250);
     });
     if (!ids.length) { toast(t('plEmpty'), 'warn'); return; }
+    if (needClear) { S.events = []; S.clock_stopped = []; S.stopStart = null; S.endT = null; }
     S.game.playlistId = pid;
     S.game.videos = ids.map(id => ({ videoId: id, duration: null }));
     save();
