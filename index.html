@@ -289,7 +289,7 @@ zh: {
   clockStoppedBadge:'時鐘停止中 · 從 {0}', gameEndBadge:'比賽結束 {0}',
   notInRosterShort:'不在名單', unnamed:'(未命名)',
   onCourtWord:'場上', offCourtWord:'場下',
-  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員', resetRoster:'還原預設名單', confirmResetRoster:'把球員名單換回預設名單。已標記的事件不受影響。要繼續嗎?', rosterReset:'已還原預設名單', confirmNewPlaylist:'載入新的 Playlist 會清除目前的 {0} 筆事件紀錄、時鐘停止與比賽結束標記,YouTube 章節也會一起清空。建議先存 JSON。要繼續嗎?', delayLabel:'標記提前(秒)', sortTime:'依影片時間 ↓', sortEntry:'依輸入順序',
+  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員', resetRoster:'還原預設名單', confirmResetRoster:'把球員名單換回預設名單。已標記的事件不受影響。要繼續嗎?', rosterReset:'已還原預設名單', confirmNewPlaylist:'載入新的 Playlist 會清除目前的 {0} 筆事件紀錄、時鐘停止與比賽結束標記,YouTube 章節也會一起清空。建議先存 JSON。要繼續嗎?', delayLabel:'標記提前(秒)', popBlocked:'瀏覽器擋掉了彈出視窗。請允許這個網站的彈出視窗後再按一次', popBar:'點這裡讓鍵盤快捷鍵生效(或直接在主視窗操作)', sortTime:'依影片時間 ↓', sortEntry:'依輸入順序',
   laterOver:' · 注意:到 {0} 場上會超過 5 人,請檢查那附近的換人紀錄',
   durBlock:'第 {0} 段的時長還沒讀到,這之後的時間軸會對不上。請先按影片下方的「重新讀取時長」',
   durMissing:'第 {0} 段的時長讀不到(影片可能還在 YouTube 處理中),這之後暫時不能標記',
@@ -352,7 +352,7 @@ en: {
   clockStoppedBadge:'Clock stopped \u00b7 from {0}', gameEndBadge:'Game ended {0}',
   notInRosterShort:'not on roster', unnamed:'(unnamed)',
   onCourtWord:'on court', offCourtWord:'off court',
-  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players', resetRoster:'Restore default roster', confirmResetRoster:'Replace the current roster with the default roster. Tagged events are not affected. Continue?', rosterReset:'Default roster restored', confirmNewPlaylist:'Loading a new playlist clears the current {0} events, clock-stop and game-end markers, and the YouTube chapters with them. Save JSON first if you want a backup. Continue?', delayLabel:'Backdate (s)', sortTime:'By video time \u2193', sortEntry:'By entry order',
+  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players', resetRoster:'Restore default roster', confirmResetRoster:'Replace the current roster with the default roster. Tagged events are not affected. Continue?', rosterReset:'Default roster restored', confirmNewPlaylist:'Loading a new playlist clears the current {0} events, clock-stop and game-end markers, and the YouTube chapters with them. Save JSON first if you want a backup. Continue?', delayLabel:'Backdate (s)', popBlocked:'The browser blocked the popup. Allow popups for this site and try again', popBar:'Click here to use keyboard shortcuts (or work in the main window)', sortTime:'By video time \u2193', sortEntry:'By entry order',
   laterOver:' \u00b7 Heads up: over 5 on court by {0} \u2014 check the substitutions around then',
   durBlock:'The length of clip {0} hasn\u2019t been read, so the timeline after it won\u2019t line up. Press "Reload durations" under the video first',
   durMissing:'Couldn\u2019t read the length of clip {0} (it may still be processing on YouTube) \u2014 tagging from there on is disabled for now',
@@ -463,6 +463,7 @@ for (const [ty, o] of Object.entries(TYPES)) if (o.k) KEYMAP[o.k] = ty;
 const v = $('#v');
 const vids = []; let curSeg = 0; let pipWin = null;
 let curRate = 1, pausePos = null;
+let pop = null, popTimer = null, popLast = null;
 let yt = null, ytReady = false, ytLoading = false, ytPendingSeek = null, ytLastState = -1;
 const isYT = () => S.game.source === 'youtube';
 const dur = i => (S.game.videos[i] && S.game.videos[i].duration) || 0;
@@ -671,10 +672,11 @@ function ensureYT() {
     setTimeout(() => { if (!(window.YT && window.YT.Player)) fail(); }, 8000);
   });
 }
-function createYT() {
+function createYT(win) {
   return new Promise((resolve, reject) => {
     let settled = false;
-    yt = new YT.Player('ytwrap', {
+    const Y = win ? win.YT : YT, target = win ? win.document.getElementById('p') : 'ytwrap';
+    yt = new Y.Player(target, {
       height: '100%', width: '100%', playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
       events: {
         onReady: () => { ytReady = true; settled = true; resolve(); if (ytPendingSeek) { const p = ytPendingSeek; ytPendingSeek = null; loadSegYT(p.i, p.tm, p.play); } },
@@ -780,7 +782,8 @@ async function retryDurations() {
   if (healed.length && S.events.some(e => e.t >= segOff(healed[0]))) { await ask(t('durShiftWarn', healed[0] + 1), t('confirm')); return; }
   if (still.length) toast(t('durMissing', still.map(i => i + 1).join(', ')), 'warn'); else toast(t('durOk'), 'made');
 }
-function resetYT() {
+function resetYT() { closePop(); releaseYT(); }
+function releaseYT() {
   if (yt) { try { yt.destroy(); } catch (e) {} }
   yt = null; ytReady = false; ytPendingSeek = null; ytLastState = -1;
   const old = document.getElementById('ytwrap'); if (old) old.remove();
@@ -800,7 +803,7 @@ function setSource(src) {
 function renderSrcSw() {
   document.querySelectorAll('#srcsw [data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === S.game.source));
   $('#pickVideo').hidden = isYT(); $('#plform').hidden = !isYT();
-  $('#theaterBtn').hidden = isYT(); $('#popBtn').hidden = isYT();
+  $('#popBtn').textContent = (pipWin || (pop && !pop.closed)) ? t('retract') : t('detach');
   $('#v').hidden = isYT(); $('#ytwrap').hidden = !isYT();
   $('#plInput').value = S.game.playlistId || '';
 }
@@ -963,6 +966,7 @@ function parseRoster(txt) {
 }
 function loadVideoUI() {
   if (isYT()) {
+    if (pop && !pop.closed) { $('#vempty').classList.remove('hide'); $('#vemptyMsg').textContent = t('detachedPlaceholder'); return; }
     const has = S.game.videos.length > 0 && ytReady;
     $('#vempty').classList.toggle('hide', has);
     $('#vemptyMsg').textContent = S.game.videos.length && !ytReady ? t('plLoading') : t('plPlaceholder');
@@ -1183,7 +1187,54 @@ async function popOut() {
   }
   toast(t('noDetach'), 'warn');
 }
-$('#popBtn').onclick = e => { e.target.blur(); popOut(); };
+/* ---------- YouTube player in its own window ---------- */
+const waitFor = (fn, ms) => new Promise((res, rej) => {
+  const t0 = Date.now();
+  const iv = setInterval(() => {
+    let ready = false; try { ready = fn(); } catch (e) {}
+    if (ready) { clearInterval(iv); res(); } else if (Date.now() - t0 > ms) { clearInterval(iv); rej(new Error('timeout')); }
+  }, 100);
+});
+function closePop() {
+  if (popTimer) { clearInterval(popTimer); popTimer = null; }
+  if (pop) { const w = pop; pop = null; try { w.close(); } catch (e) {} }
+}
+async function restoreFromPop(keep) {
+  releaseYT();
+  $('#popBtn').textContent = t('detach');
+  try { await ensureYT(); await createYT(); } catch (e) { toast(t('ytApiFail'), 'warn'); loadVideoUI(); return; }
+  if (keep) loadSegYT(keep.seg, keep.lt, false);
+  loadVideoUI(); renderAll();
+}
+async function popOutYT() {
+  if (pop && !pop.closed) { pop.close(); return; }
+  if (!S.game.videos.length) { toast(t('loadFirst'), 'warn'); return; }
+  const pw = window.open('', 'gt_player', 'popup=yes,width=1280,height=760');
+  if (!pw) { toast(t('popBlocked'), 'warn'); return; }
+  pop = pw;
+  const keep = { seg: curSeg, lt: localTime(), play: isPlaying() };
+  pw.document.open();
+  pw.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Player</title><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#p{position:absolute;left:0;top:0;right:0;bottom:28px}#bar{position:absolute;left:0;right:0;bottom:0;height:28px;background:#111;color:#98a8ba;font:12px/28px -apple-system,sans-serif;text-align:center;user-select:none}</style></head><body><div id="p"></div><div id="bar" tabindex="0"></div><script src="https://www.youtube.com/iframe_api"><\/script></body></html>');
+  pw.document.close();
+  try { await waitFor(() => pw.YT && pw.YT.Player, 10000); }
+  catch (e) { closePop(); toast(t('ytApiFail'), 'warn'); return; }
+  releaseYT();
+  try { await createYT(pw); }
+  catch (e) { closePop(); toast(t('ytApiFail'), 'warn'); await restoreFromPop(keep); return; }
+  pw.document.getElementById('bar').textContent = t('popBar');
+  pw.document.addEventListener('keydown', onKey, true);
+  pw.document.addEventListener('keyup', onKeyUp, true);
+  popLast = keep;
+  loadSegYT(keep.seg, keep.lt, keep.play);
+  $('#popBtn').textContent = t('retract'); loadVideoUI(); toast(t('detachedHint'), 'made');
+  popTimer = setInterval(() => {
+    if (!pop) { clearInterval(popTimer); popTimer = null; return; }
+    if (!pop.closed) { try { if (yt && ytReady) popLast = { seg: curSeg, lt: localTime(), play: false }; } catch (e) {} return; }
+    clearInterval(popTimer); popTimer = null; pop = null;
+    restoreFromPop(popLast);
+  }, 500);
+}
+$('#popBtn').onclick = e => { e.target.blur(); isYT() ? popOutYT() : popOut(); };
 $('#theaterBtn').onclick = e => {
   const on = document.body.classList.toggle('theater');
   e.target.textContent = on ? t('shrink') : t('enlarge'); e.target.blur();
