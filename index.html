@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>比賽標記器 · Game Tagger</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -251,6 +252,12 @@ dialog .segpick button.on{background:var(--wood);border-color:var(--wood);color:
 <script>
 (() => {
 'use strict';
+if (new URLSearchParams(location.search).get('player') === '1') {
+  document.title = 'Player';
+  document.head.insertAdjacentHTML('beforeend', '<style>html,body{margin:0;height:100%;background:#000;overflow:hidden;padding:0}#p{position:absolute;left:0;top:0;right:0;bottom:28px}#bar{position:absolute;left:0;right:0;bottom:0;height:28px;background:#111;color:#98a8ba;font:12px/28px -apple-system,sans-serif;text-align:center;user-select:none}</style>');
+  document.body.innerHTML = '<div id="p"></div><div id="bar" tabindex="0"></div>';
+  return;
+}
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -681,7 +688,7 @@ function createYT(win) {
       events: {
         onReady: () => { ytReady = true; settled = true; resolve(); if (ytPendingSeek) { const p = ytPendingSeek; ytPendingSeek = null; loadSegYT(p.i, p.tm, p.play); } },
         onError: e => {
-          const names = { 2:'invalid video id', 5:'HTML5 player error', 100:'video not found or private', 101:'embedding disabled by video owner', 150:'embedding disabled by video owner' };
+          const names = { 2:'invalid video id', 5:'HTML5 player error', 100:'video not found or private', 101:'embedding disabled by video owner', 150:'embedding disabled by video owner', 153:'player configuration error: the embedding page sent no referrer' };
           toast(t('ytPlaybackErr', names[e.data] || ('code ' + e.data)), 'warn');
           if (!settled) { settled = true; const err = new Error('yt error'); err.code = 'video'; reject(err); }
         },
@@ -1209,14 +1216,12 @@ async function restoreFromPop(keep) {
 async function popOutYT() {
   if (pop && !pop.closed) { pop.close(); return; }
   if (!S.game.videos.length) { toast(t('loadFirst'), 'warn'); return; }
-  const pw = window.open('', 'gt_player', 'popup=yes,width=1280,height=760');
+  const purl = new URL(location.href); purl.search = '?player=1'; purl.hash = '';
+  const pw = window.open(purl.href, 'gt_player', 'popup=yes,width=1280,height=760');
   if (!pw) { toast(t('popBlocked'), 'warn'); return; }
   pop = pw;
   const keep = { seg: curSeg, lt: localTime(), play: isPlaying() };
-  pw.document.open();
-  pw.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Player</title><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#p{position:absolute;left:0;top:0;right:0;bottom:28px}#bar{position:absolute;left:0;right:0;bottom:0;height:28px;background:#111;color:#98a8ba;font:12px/28px -apple-system,sans-serif;text-align:center;user-select:none}</style></head><body><div id="p"></div><div id="bar" tabindex="0"></div><script src="https://www.youtube.com/iframe_api"><\/script></body></html>');
-  pw.document.close();
-  try { await waitFor(() => pw.YT && pw.YT.Player, 10000); }
+  try { await waitFor(() => pw.YT && pw.YT.Player && pw.document.getElementById('p'), 12000); }
   catch (e) { closePop(); toast(t('ytApiFail'), 'warn'); return; }
   releaseYT();
   try { await createYT(pw); }
