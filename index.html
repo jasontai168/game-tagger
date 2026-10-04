@@ -110,6 +110,8 @@ textarea#rosterTxt{width:100%;min-height:150px;margin:8px 0}
 #log{max-height:340px;overflow-y:auto}
 .ev{display:grid;grid-template-columns:58px 1fr auto 22px;gap:8px;align-items:center;padding:3px 4px;border-radius:4px;cursor:pointer;font-size:14px}
 .ev:hover{background:var(--panel2)}
+.ev.new{animation:evflash 1.8s ease-out}
+@keyframes evflash{from{background:rgba(227,168,87,.5)}to{background:transparent}}
 .ev .tm{color:var(--muted);font-size:16px}
 .ev .made{color:var(--made)} .ev .miss,.ev .bad{color:var(--miss)} .ev .neutral{color:var(--info)}
 .ev .del{border:0;background:none;padding:0;color:var(--muted);font-size:16px}
@@ -201,7 +203,7 @@ dialog .segpick button.on{background:var(--wood);border-color:var(--wood);color:
         </details>
       </section>
       <section class="card">
-        <h2><span id="t_eventLog"></span><span class="muted" id="logCount"></span><button id="subOnly" style="padding:2px 10px"></button></h2>
+        <h2><span><span id="t_eventLog"></span> <span class="muted" id="logCount"></span></span><span style="display:flex;gap:6px"><button id="sortBtn" style="padding:2px 10px"></button><button id="subOnly" style="padding:2px 10px"></button></span></h2>
         <div id="log"></div>
       </section>
     </aside>
@@ -287,7 +289,7 @@ zh: {
   clockStoppedBadge:'時鐘停止中 · 從 {0}', gameEndBadge:'比賽結束 {0}',
   notInRosterShort:'不在名單', unnamed:'(未命名)',
   onCourtWord:'場上', offCourtWord:'場下',
-  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員', resetRoster:'還原預設名單', confirmResetRoster:'把球員名單換回預設名單。已標記的事件不受影響。要繼續嗎?', rosterReset:'已還原預設名單', confirmNewPlaylist:'載入新的 Playlist 會清除目前的 {0} 筆事件紀錄、時鐘停止與比賽結束標記,YouTube 章節也會一起清空。建議先存 JSON。要繼續嗎?', delayLabel:'標記提前(秒)',
+  emptyRosterWarn:'沒讀到名單。格式:每行「背號 名字」', rosterApplied:'已套用 {0} 位球員', resetRoster:'還原預設名單', confirmResetRoster:'把球員名單換回預設名單。已標記的事件不受影響。要繼續嗎?', rosterReset:'已還原預設名單', confirmNewPlaylist:'載入新的 Playlist 會清除目前的 {0} 筆事件紀錄、時鐘停止與比賽結束標記,YouTube 章節也會一起清空。建議先存 JSON。要繼續嗎?', delayLabel:'標記提前(秒)', sortTime:'依影片時間 ↓', sortEntry:'依輸入順序',
   laterOver:' · 注意:到 {0} 場上會超過 5 人,請檢查那附近的換人紀錄',
   durBlock:'第 {0} 段的時長還沒讀到,這之後的時間軸會對不上。請先按影片下方的「重新讀取時長」',
   durMissing:'第 {0} 段的時長讀不到(影片可能還在 YouTube 處理中),這之後暫時不能標記',
@@ -350,7 +352,7 @@ en: {
   clockStoppedBadge:'Clock stopped \u00b7 from {0}', gameEndBadge:'Game ended {0}',
   notInRosterShort:'not on roster', unnamed:'(unnamed)',
   onCourtWord:'on court', offCourtWord:'off court',
-  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players', resetRoster:'Restore default roster', confirmResetRoster:'Replace the current roster with the default roster. Tagged events are not affected. Continue?', rosterReset:'Default roster restored', confirmNewPlaylist:'Loading a new playlist clears the current {0} events, clock-stop and game-end markers, and the YouTube chapters with them. Save JSON first if you want a backup. Continue?', delayLabel:'Backdate (s)',
+  emptyRosterWarn:'Couldn\u2019t read a roster. Format: one line per player, "number name"', rosterApplied:'Applied {0} players', resetRoster:'Restore default roster', confirmResetRoster:'Replace the current roster with the default roster. Tagged events are not affected. Continue?', rosterReset:'Default roster restored', confirmNewPlaylist:'Loading a new playlist clears the current {0} events, clock-stop and game-end markers, and the YouTube chapters with them. Save JSON first if you want a backup. Continue?', delayLabel:'Backdate (s)', sortTime:'By video time \u2193', sortEntry:'By entry order',
   laterOver:' \u00b7 Heads up: over 5 on court by {0} \u2014 check the substitutions around then',
   durBlock:'The length of clip {0} hasn\u2019t been read, so the timeline after it won\u2019t line up. Press "Reload durations" under the video first',
   durMissing:'Couldn\u2019t read the length of clip {0} (it may still be processing on YouTube) \u2014 tagging from there on is disabled for now',
@@ -589,6 +591,7 @@ function tag(type, forced) {
     toast(t('offCourtBlock', who), 'warn'); setBuf(''); return;
   }
   S.events.push({ t: isSub({ type }) ? tm : statStamp(), player: n, type });
+  lastAdded = S.events.length - 1;
   save(); setBuf('');
   renderAll();
   const c = courtAt(tm).size;
@@ -829,17 +832,29 @@ function renderRoster() {
   $('#onCount').textContent = S.roster.length ? t('onCourt') + ' ' + onN : '';
   renderCourt();
 }
-let subOnly = false;
+let subOnly = false, lastAdded = null;
+let logSort = (() => { try { return localStorage.getItem('hoops-tagger-logsort') === 'entry' ? 'entry' : 'time'; } catch (e) { return 'time'; } })();
 function renderLog() {
   const all = S.events.map((e, i) => ({e, i}));
-  const items = (subOnly ? all.filter(x => isSub(x.e)) : all).reverse();
+  const filtered = subOnly ? all.filter(x => isSub(x.e)) : all;
+  const items = logSort === 'time' ? filtered.slice().sort((a, b) => (b.e.t - a.e.t) || (b.i - a.i)) : filtered.slice().reverse();
   $('#logCount').textContent = items.length + ' ' + t('entries');
   $('#subOnly').style.borderColor = subOnly ? 'var(--wood)' : '';
+  $('#sortBtn').textContent = logSort === 'time' ? t('sortTime') : t('sortEntry');
   setHTML($('#log'), items.length ? items.map(({e, i}) => `<div class="ev" data-i="${i}">
       <span class="tm">${fmtLog(e.t)}</span><span>#${e.player} ${esc(nameOf(e.player))}</span>
       <span class="${TYPES[e.type] ? TYPES[e.type].cls : 'neutral'}">${TYPES[e.type] ? TYPES[e.type].label : subLabel(e.type)}</span>
       <button class="del" data-del="${i}" aria-label="${t('deleteThis')}">\u00d7</button></div>`).join('')
     : `<p class="muted">${t('noMatch')}</p>`);
+  if (lastAdded != null) {
+    const row = $('#log').querySelector(`[data-i="${lastAdded}"]`);
+    if (row) {
+      row.classList.add('new');
+      const box = $('#log'), r = row.getBoundingClientRect(), b = box.getBoundingClientRect();
+      if (r.top < b.top || r.bottom > b.bottom) box.scrollTop += (r.top - b.top) - (b.height - r.height) / 2;
+    }
+    lastAdded = null;
+  }
 }
 function renderBox() {
   const rows = computeStats().filter(r => S.roster.some(p => p.number === r.n) || r.pts || r.reb || r.ast || r.stl || r.to || r.a2 || r.a3 || r.af || r.sec);
@@ -1062,6 +1077,7 @@ $('#roster').addEventListener('pointerdown', e => {
   if (s) { e.preventDefault(); const n = +s.dataset.sub; tag(onCourtAt(n, stamp()) ? 'SUB_OUT' : 'SUB_IN', n); return; }
   const row = e.target.closest('[data-n]'); if (row) { e.preventDefault(); setBuf(row.dataset.n, 8000); }
 });
+$('#sortBtn').onclick = e => { logSort = logSort === 'time' ? 'entry' : 'time'; try { localStorage.setItem('hoops-tagger-logsort', logSort); } catch (err) {} e.target.blur(); renderLog(); };
 $('#subOnly').onclick = e => { subOnly = !subOnly; e.target.blur(); renderLog(); };
 $('#log').onclick = e => {
   const d = e.target.closest('[data-del]');
